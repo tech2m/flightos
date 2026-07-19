@@ -97,14 +97,16 @@ If the autopilot flies crookedly, makes wide turns, or fails to fly in a straigh
 
 If the ship instantly flips over, spins, or rolls violently out of control the moment you toggle stabilization ON, it means one or more of your four corner motors are rotating in the wrong direction (inverted thrust).
 
-### How to Detect Inverted Motors
-1. Turn **OFF** the stabilization system (`Stab: OFF`) on the Dashboard.
-2. Manually tilt the ship to one side (e.g., tilt it to the Left).
-3. Observe the outputs on the Dashboard or Cockpit HUD:
-   * The computer will try to lift the left side. The Front-Left (FL) and Back-Left (BL) engines should show positive RPM values on the screen.
-4. Walk over to the Front-Left and Back-Left mechanical engines:
-   * Verify that the physical propellers are pushing air **downwards** to lift the ship.
-   * If a propeller is blowing air **upwards** (pulling the ship down) while the dashboard shows a positive RPM value, that motor is physically inverted.
+### How to Detect Inverted Motors Using Tablet Test
+1. Access the **Ctrl** tab on your handheld tablet.
+2. Press the **T** key (or **E** in Russian layout) to trigger **Test Motors** mode.
+3. The stabilization system will automatically turn OFF, and a sequential testing routine will begin:
+   * **FL (Front-Left)**, **FR (Front-Right)**, **BL (Back-Left)**, and **BR (Back-Right)** motors will be tested one by one.
+   * Before each motor spins, the tablet will display a 3-second countdown (e.g., `FL Fan prep: 3s`). This gives you time to walk over to the active corner.
+   * The active motor will spin at +45 RPM for 3 seconds (`FL Fan active!`).
+4. Stand next to the active engine during its 3-second spin phase:
+   * Verify that the physical propeller is pushing air **downwards** to lift the ship.
+   * If the active propeller blows air **upwards** (pulling the ship down) while its test phase is active, that motor is physically inverted.
 
 ### How to Correct the Inversion
 * Use a **Create Wrench** to right-click the inverted **Rotation Speed Controller** block and change its target direction (e.g., invert the dial setting from positive to negative, or vice-versa).
