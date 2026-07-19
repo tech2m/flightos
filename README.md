@@ -154,4 +154,9 @@ If you find FlightOS useful and want to support its active development, you can 
 
 * **TON Wallet Address**: `UQCMGig6RdykyImPbfY3qfTuYvbvV3EQ8kxr80DBJSBY3EhS`
 
+> [!WARNING]
+> This wallet is on the **TON (Telegram Open Network - the native Telegram blockchain)**. 
+> Make sure to send assets (such as Toncoin or USDT) **strictly using the TON network**. Sending tokens via other networks (like Ethereum/ERC-20 or BNB Chain/BEP-20) to this address will result in permanent loss of funds!
+
+
 
