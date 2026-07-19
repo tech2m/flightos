@@ -146,3 +146,12 @@ A redstone relay allows pilots to manually disable the autopilot system instantl
 
 The integrated streaming audio capability of the FlightOS Music subsystem is built upon the implementation from [computercraft-streaming-music](https://github.com/terreng/computercraft-streaming-music).
 
+---
+
+## Donations
+
+If you find FlightOS useful and want to support its active development, you can send donations to the developer's TON (Telegram Open Network) wallet:
+
+* **TON Wallet Address**: `UQCMGig6RdykyImPbfY3qfTuYvbvV3EQ8kxr80DBJSBY3EhS`
+
+
