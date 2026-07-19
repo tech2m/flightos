@@ -8,15 +8,11 @@ FlightOS is an autopilot and stabilization control suite designed for aerostatic
 
 ### Primary Ship Computer
 Run the following command on the central ship computer terminal:
-<!-- SHIP_INSTALL -->
-`wget https://dpaste.com/5Y23N8U7N.txt installer.cmd && installer.cmd`
-<!-- /SHIP_INSTALL -->
+<!-- SHIP_INSTALL -->`pastebin run Lqw9a5mh`<!-- /SHIP_INSTALL -->
 
 ### Remote Pocket Tablet
 Run the following command on the pocket computer (requires a wireless Ender Modem):
-<!-- TABLET_INSTALL -->
-`wget https://dpaste.com/BVF7ZUTDF.txt installer.cmd && installer.cmd`
-<!-- /TABLET_INSTALL -->
+<!-- TABLET_INSTALL -->`pastebin run tvUMD02v`<!-- /TABLET_INSTALL -->
 
 ---
 
