@@ -1,0 +1,14 @@
+# Local ComputerCraft files
+*.dat
+*.txt
+installer.lua
+tablet/installer.lua
+scratch/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+pastebin_config.json
+release_notes.md
+
+
