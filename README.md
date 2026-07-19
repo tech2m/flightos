@@ -137,3 +137,10 @@ All motors, monitors, and modems must be networked back to the central ship comp
 ### Autopilot Interrupt Relay
 ![Autopilot Safety Relay](flightos/screenshots/invert_signal_for_disable_autopilot.png)
 A redstone relay allows pilots to manually disable the autopilot system instantly from the captain's chair.
+
+---
+
+## Credits & References
+
+The integrated streaming audio capability of the FlightOS Music subsystem is built upon the implementation from [computercraft-streaming-music](https://github.com/terreng/computercraft-streaming-music).
+
