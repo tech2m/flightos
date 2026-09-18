@@ -35,8 +35,8 @@ local defaults = {
     manual_propeller_id = "throttle_lever_1",
     manual_thrust_id = "throttle_lever_2",
     manual_steering_id = "steering_wheel_0",
-    manual_propeller_max = 256,
-    manual_thrust_max = 256,
+    manual_propeller_max = 1024,
+    manual_thrust_max = 512,
     manual_steering_max = 256,
     manual_propeller_invert = true,
 }
@@ -59,8 +59,8 @@ function Config.load()
                 if loaded.motor_max == 128 then cfg.motor_max = 256 end
                 if loaded.auto_speed_max == 128 then cfg.auto_speed_max = 256 end
                 if loaded.auto_steer_max == 128 then cfg.auto_steer_max = 256 end
-                if loaded.manual_propeller_max == 128 then cfg.manual_propeller_max = 256 end
-                if loaded.manual_thrust_max == 128 then cfg.manual_thrust_max = 256 end
+                if loaded.manual_propeller_max == 128 or loaded.manual_propeller_max == 256 then cfg.manual_propeller_max = 1024 end
+                if loaded.manual_thrust_max == 128 or loaded.manual_thrust_max == 256 then cfg.manual_thrust_max = 512 end
                 if loaded.manual_steering_max == 128 then cfg.manual_steering_max = 256 end
             end
         end

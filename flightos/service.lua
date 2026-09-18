@@ -34,11 +34,13 @@ Service.data = {
 local function clamp(val, lo, hi)
     return math.max(lo, math.min(hi, val))
 end
-local function setMotorSpeeds(fl, fr, bl, br)
-    fl = clamp(fl, cfg.motor_min, cfg.motor_max)
-    fr = clamp(fr, cfg.motor_min, cfg.motor_max)
-    bl = clamp(bl, cfg.motor_min, cfg.motor_max)
-    br = clamp(br, cfg.motor_min, cfg.motor_max)
+local function setMotorSpeeds(fl, fr, bl, br, outputMax)
+    local maxSpeed = outputMax or cfg.motor_max
+    local minSpeed = -maxSpeed
+    fl = clamp(fl, minSpeed, maxSpeed)
+    fr = clamp(fr, minSpeed, maxSpeed)
+    bl = clamp(bl, minSpeed, maxSpeed)
+    br = clamp(br, minSpeed, maxSpeed)
     parallel.waitForAll(
         function() motor_FL.setTargetSpeed(fl) end,
         function() motor_FR.setTargetSpeed(fr) end,
@@ -115,7 +117,7 @@ local function applyManualControls()
         if cfg.manual_propeller_invert then
             speed = -speed
         end
-        setMotorSpeeds(speed, speed, speed, speed)
+        setMotorSpeeds(speed, speed, speed, speed, cfg.manual_propeller_max or 1024)
     end
     Service.data.manual_active = true
     Service.data.manual_propeller = propeller or 0
