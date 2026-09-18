@@ -7,37 +7,38 @@ local defaults = {
     roll_kp = 0.8,
     roll_ki = 0.4,
     roll_kd = 1.8,
-    motor_min = -128,
-    motor_max = 128,
+    motor_min = -256,
+    motor_max = 256,
     corr_max = 90,
     ki_out_max = 80,
     motor_br_id = "Create_RotationSpeedController_0",
-    motor_bl_id = "Create_RotationSpeedController_1",
-    motor_fl_id = "Create_RotationSpeedController_2",
-    motor_fr_id = "Create_RotationSpeedController_3",
+    motor_bl_id = "Create_RotationSpeedController_2",
+    motor_fl_id = "Create_RotationSpeedController_4",
+    motor_fr_id = "Create_RotationSpeedController_1",
     log_enabled = false,
     stab_enabled = true,
-    motor_speed_id = "Create_RotationSpeedController_5",
-    motor_steer_id = "Create_RotationSpeedController_4",
+    motor_speed_id = "Create_RotationSpeedController_7",
+    motor_steer_id = "Create_RotationSpeedController_9",
     target_x = 0,
     target_y = 64,
     target_z = 0,
     auto_enabled = false,
     speed_invert = false,
-    steer_invert = false,
+    steer_invert = true,
     rs_relay_id = "none",
     rs_side = "top",
-    auto_speed_max = 128,
-    auto_steer_max = 128,
+    auto_speed_max = 256,
+    auto_steer_max = 256,
     auto_steer_kp = 80,
     auto_steer_kd = 15,
     manual_enabled = true,
-    manual_propeller_id = "none",
-    manual_thrust_id = "none",
-    manual_steering_id = "none",
-    manual_propeller_max = 128,
-    manual_thrust_max = 128,
-    manual_steering_max = 128,
+    manual_propeller_id = "throttle_lever_1",
+    manual_thrust_id = "throttle_lever_2",
+    manual_steering_id = "steering_wheel_0",
+    manual_propeller_max = 256,
+    manual_thrust_max = 256,
+    manual_steering_max = 256,
+    manual_propeller_invert = true,
 }
 function Config.load()
     local cfg = {}
@@ -54,6 +55,13 @@ function Config.load()
                 for k, v in pairs(loaded) do
                     cfg[k] = v
                 end
+                if loaded.motor_min == -128 then cfg.motor_min = -256 end
+                if loaded.motor_max == 128 then cfg.motor_max = 256 end
+                if loaded.auto_speed_max == 128 then cfg.auto_speed_max = 256 end
+                if loaded.auto_steer_max == 128 then cfg.auto_steer_max = 256 end
+                if loaded.manual_propeller_max == 128 then cfg.manual_propeller_max = 256 end
+                if loaded.manual_thrust_max == 128 then cfg.manual_thrust_max = 256 end
+                if loaded.manual_steering_max == 128 then cfg.manual_steering_max = 256 end
             end
         end
     end

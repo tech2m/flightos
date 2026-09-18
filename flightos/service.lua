@@ -112,6 +112,9 @@ local function applyManualControls()
     end
     if propeller then
         local speed = propeller * (cfg.manual_propeller_max or 128)
+        if cfg.manual_propeller_invert then
+            speed = -speed
+        end
         setMotorSpeeds(speed, speed, speed, speed)
     end
     Service.data.manual_active = true
