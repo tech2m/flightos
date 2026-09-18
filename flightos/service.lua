@@ -92,18 +92,15 @@ local function normalizedControl(control, inputMax)
     local value, method = readControl(control)
     if value == nil then return nil end
     if math.abs(value) > 1 then
-        local scale = 100
-        if method == "getAngle" or method == "getRotation" or method == "getWheelAngle" then
-            scale = inputMax or 90
-        end
+        local scale = inputMax or 100
         value = value / scale
     end
     return clamp(value, -1, 1)
 end
 local function applyManualControls()
     if not cfg.manual_enabled then return false end
-    local propeller = normalizedControl(manual_propeller, 1)
-    local thrust = normalizedControl(manual_thrust, 1)
+    local propeller = normalizedControl(manual_propeller, 15)
+    local thrust = normalizedControl(manual_thrust, 15)
     local steering = normalizedControl(manual_steering, 90)
     if not propeller and not thrust and not steering then return false end
     if motor_speed then
