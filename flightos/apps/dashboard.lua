@@ -17,6 +17,11 @@ function app.draw(target, service)
     local autoColor = d.auto_enabled and UI.colors.accent or UI.colors.err
     UI.writeAt(target, 16, 4, "Auto: ", UI.colors.textDim)
     UI.writeAt(target, 22, 4, autoStatus, autoColor)
+    if w >= 49 then
+        local manualStatus = d.manual_active and "ACTIVE" or "IDLE"
+        UI.writeAt(target, 35, 4, "Manual: ", UI.colors.textDim)
+        UI.writeAt(target, 43, 4, manualStatus, d.manual_active and UI.colors.accent or UI.colors.textDim)
+    end
     if d.x then
         local posStr = string.format("GPS: %d %d %d", math.floor(d.x+0.5), math.floor(d.y+0.5), math.floor(d.z+0.5))
         if d.auto_enabled and d.dist then

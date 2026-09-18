@@ -31,6 +31,13 @@ local defaults = {
     auto_steer_max = 128,
     auto_steer_kp = 80,
     auto_steer_kd = 15,
+    manual_enabled = true,
+    manual_propeller_id = "none",
+    manual_thrust_id = "none",
+    manual_steering_id = "none",
+    manual_propeller_max = 128,
+    manual_thrust_max = 128,
+    manual_steering_max = 128,
 }
 function Config.load()
     local cfg = {}

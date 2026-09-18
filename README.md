@@ -30,6 +30,11 @@ For detailed step-by-step instructions on setting up GPS host computers, please 
 ![Dashboard](flightos/screenshots/pc_dash_page.png)
 The main screen displays real-time ship pitch and roll angles, global coordinates, active system states, and individual engine outputs.
 
+### Manual Controls
+Connect two CC:Tweaked throttle levers and one steering wheel to the ship computer. Configure their peripheral names in **Settings** as `Prop Lever ID`, `Thrust Lever ID`, and `Steering Wheel ID`.
+
+The propeller lever controls all four outer propellers, the thrust lever controls forward thrust, and the steering wheel controls the steering motor. Manual input takes priority over the autopilot. Set an unused ID to `none` to disable that input.
+
 ### Autopilot Configuration
 ![Autopilot](flightos/screenshots/pc_autopilot_page.png)
 Enter target coordinates, monitor distance to the destination, and configure autopilot-specific tuning constants.

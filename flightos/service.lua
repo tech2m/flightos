@@ -2,6 +2,7 @@ local PID = require("pid")
 local Service = {}
 local gimbal, motor_BR, motor_BL, motor_FL, motor_FR, monitor
 local motor_speed, motor_steer
+local manual_propeller, manual_thrust, manual_steering
 local rollPID, pitchPID
 local cfg
 local running = false
@@ -22,6 +23,10 @@ Service.data = {
     enabled = false,
     logging = false,
     auto_enabled = false,
+    manual_active = false,
+    manual_propeller = 0,
+    manual_thrust = 0,
+    manual_steering = 0,
     x = nil, y = nil, z = nil,
     dist = nil, progress = 0,
     test_msg = nil,
@@ -51,6 +56,69 @@ local function stopMotors()
             function() motor_BR.setTargetSpeed(0) end
         )
     end)
+end
+local function findByType(peripheralType, index)
+    local matches = {}
+    for _, name in ipairs(peripheral.getNames()) do
+        local ok, actualType = pcall(peripheral.getType, name)
+        if ok and (actualType == peripheralType or actualType == "create:" .. peripheralType) then
+            matches[#matches + 1] = name
+        end
+    end
+    return matches[index or 1] and peripheral.wrap(matches[index or 1]) or nil
+end
+local function wrapConfigured(id, peripheralType, index)
+    if id and id ~= "" and id ~= "none" then
+        return peripheral.wrap(id)
+    end
+    return findByType(peripheralType, index)
+end
+local function readControl(control)
+    if not control then return nil end
+    local methods = {"getValue", "getPosition", "getAngle", "getRotation", "getWheelAngle", "getState"}
+    for _, method in ipairs(methods) do
+        if type(control[method]) == "function" then
+            local ok, value = pcall(control[method])
+            if ok and type(value) == "number" then
+                return value, method
+            end
+        end
+    end
+    return nil
+end
+local function normalizedControl(control, inputMax)
+    local value, method = readControl(control)
+    if value == nil then return nil end
+    if math.abs(value) > 1 then
+        local scale = 100
+        if method == "getAngle" or method == "getRotation" or method == "getWheelAngle" then
+            scale = inputMax or 90
+        end
+        value = value / scale
+    end
+    return clamp(value, -1, 1)
+end
+local function applyManualControls()
+    if not cfg.manual_enabled then return false end
+    local propeller = normalizedControl(manual_propeller, 1)
+    local thrust = normalizedControl(manual_thrust, 1)
+    local steering = normalizedControl(manual_steering, 90)
+    if not propeller and not thrust and not steering then return false end
+    if motor_speed then
+        pcall(motor_speed.setTargetSpeed, (thrust or 0) * (cfg.manual_thrust_max or 128))
+    end
+    if motor_steer then
+        pcall(motor_steer.setTargetSpeed, (steering or 0) * (cfg.manual_steering_max or 128))
+    end
+    if propeller then
+        local speed = propeller * (cfg.manual_propeller_max or 128)
+        setMotorSpeeds(speed, speed, speed, speed)
+    end
+    Service.data.manual_active = true
+    Service.data.manual_propeller = propeller or 0
+    Service.data.manual_thrust = thrust or 0
+    Service.data.manual_steering = steering or 0
+    return true
 end
 local function drawBar(monitor, y, label, val, maxVal, colorOk, colorWarn, colorErr)
     local mw, _ = monitor.getSize()
@@ -343,6 +411,9 @@ function Service.applyConfig(config)
         monitor  = peripheral.find("monitor")
         motor_speed = peripheral.wrap(cfg.motor_speed_id)
         motor_steer = peripheral.wrap(cfg.motor_steer_id)
+        manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
+        manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
+        manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
     end
 end
 function Service.init(config)
@@ -355,6 +426,9 @@ function Service.init(config)
     monitor  = peripheral.find("monitor")
     motor_speed = peripheral.wrap(cfg.motor_speed_id)
     motor_steer = peripheral.wrap(cfg.motor_steer_id)
+    manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
+    manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
+    manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
     if not gimbal then return false, "Gimbal not found" end
     if not motor_BR then return false, "Motor BR not found" end
     if not motor_BL then return false, "Motor BL not found" end
@@ -567,9 +641,16 @@ function Service.step(runStabilizer)
     d.pitchBias = pitchPID.bias
     d.rollKd = rollPID.kd
     d.pitchKd = pitchPID.kd
+    d.manual_active = false
     d.tick = tick
     d.dt = dt
-    if d.auto_enabled and motor_speed and motor_steer then
+    local manualActive = applyManualControls()
+    if manualActive then
+        d.auto_enabled = false
+        d.dist = nil
+        d.progress = 0
+        setAutopilotRedstone(false)
+    elseif d.auto_enabled and motor_speed and motor_steer then
         local cx, cy, cz = d.x, d.y, d.z
         if cx and cz then
             local tx = cfg.target_x or 0

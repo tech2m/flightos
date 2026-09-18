@@ -15,6 +15,9 @@ local fields = {
     { key = "motor_fr_id", label = "FR Fan ID", is_string = true },
     { key = "motor_bl_id", label = "BL Fan ID", is_string = true },
     { key = "motor_br_id", label = "BR Fan ID", is_string = true },
+    { key = "manual_propeller_id", label = "Prop Lever ID", is_string = true },
+    { key = "manual_thrust_id", label = "Thrust Lever ID", is_string = true },
+    { key = "manual_steering_id", label = "Steering Wheel ID", is_string = true },
 }
 local selectedField = 1
 local scrollOffset = 0
