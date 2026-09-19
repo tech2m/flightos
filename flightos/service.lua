@@ -257,6 +257,13 @@ local function updateMonitor()
         local aColor = d.auto_enabled and colors.lime or colors.red
         monitor.setTextColor(aColor)
         monitor.write(aStatus)
+        monitor.setCursorPos(31, 3)
+        monitor.setTextColor(colors.gray)
+        monitor.write("M: ")
+        local mStatus = d.manual_active and "ON " or "OFF"
+        local mColor = d.manual_active and colors.lime or colors.red
+        monitor.setTextColor(mColor)
+        monitor.write(mStatus)
         monitor.setCursorPos(2, 4)
         monitor.setTextColor(colors.lightGray)
         monitor.write("Pitch: ")
