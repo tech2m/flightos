@@ -5,11 +5,15 @@ local update_status = ""
 local status_color = UI.colors.text
 local updateCoroutine = nil
 local updateUrl = "https://raw.githubusercontent.com/tech2m/flightos/main/update.lua"
+local buttonLabel = "Download and install latest version"
+local buttonY = 9
 function app.draw(target, service)
     local w, h = target.getSize()
+    local buttonWidth = #buttonLabel + 2
+    local buttonX = math.floor((w - buttonWidth) / 2) + 1
     UI.centerText(target, 4, "FlightOS System Update", UI.colors.header)
     UI.centerText(target, 7, "Update from GitHub", UI.colors.textDim)
-    UI.drawButton(target, 2, 9, "Download and install latest version", updateCoroutine ~= nil)
+    UI.drawButton(target, buttonX, buttonY, buttonLabel, updateCoroutine ~= nil)
     if update_status ~= "" then
         UI.centerText(target, 11, update_status, status_color)
     end
@@ -54,7 +58,9 @@ function app.handleEvent(event, service, cfg, target)
     if event[1] == "mouse_click" and event[4] == 10 then
         local mx = event[3]
         local w, h = term.getSize()
-        if mx >= 2 and mx <= w - 1 then
+        local buttonWidth = #buttonLabel + 2
+        local buttonX = math.floor((w - buttonWidth) / 2) + 1
+        if mx >= buttonX and mx < buttonX + buttonWidth then
             if updateCoroutine and coroutine.status(updateCoroutine) ~= "dead" then return true end
             updateCoroutine = coroutine.create(function()
                 performUpdate(target)

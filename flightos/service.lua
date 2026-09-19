@@ -253,14 +253,16 @@ local function updateMonitor()
         monitor.setCursorPos(21, 3)
         monitor.setTextColor(colors.gray)
         monitor.write("Auto: ")
-        local aStatus = d.auto_enabled and "ACTIVE  " or "DISABLED"
+        local aStatus = d.auto_enabled and "ON" or "OFF"
         local aColor = d.auto_enabled and colors.lime or colors.red
         monitor.setTextColor(aColor)
         monitor.write(aStatus)
-        monitor.setCursorPos(31, 3)
+        local manualLabel = "M: "
+        local manualX = 21 + #("Auto: " .. aStatus) + 1
+        monitor.setCursorPos(manualX, 3)
         monitor.setTextColor(colors.gray)
-        monitor.write("M: ")
-        local mStatus = d.manual_active and "ON " or "OFF"
+        monitor.write(manualLabel)
+        local mStatus = d.manual_active and "ON" or "OFF"
         local mColor = d.manual_active and colors.lime or colors.red
         monitor.setTextColor(mColor)
         monitor.write(mStatus)
