@@ -89,13 +89,14 @@ local function findByType(peripheralType, index)
 end
 local function wrapConfigured(id, peripheralType, index)
     if id and id ~= "" and id ~= "none" then
-        return peripheral.wrap(id)
+        local configured = peripheral.wrap(id)
+        if configured then return configured end
     end
     return findByType(peripheralType, index)
 end
 local function readControl(control)
     if not control then return nil end
-    local methods = {"getValue", "getPosition", "getAngle", "getRotation", "getWheelAngle", "getState"}
+    local methods = {"getValue", "getPosition", "getAngle", "getRotation", "getWheelAngle", "getPercent", "getPower", "getSpeed", "getState"}
     for _, method in ipairs(methods) do
         if type(control[method]) == "function" then
             local ok, value = pcall(control[method])
@@ -117,7 +118,7 @@ local function normalizedControl(control, inputMax)
 end
 local function normalizedSteering(control)
     if not control then return nil end
-    local methods = {"getWheelAngle", "getAngle", "getRotation", "getValue", "getPosition"}
+    local methods = {"getWheelAngle", "getAngle", "getRotation", "getValue", "getPosition", "getPercent"}
     for _, method in ipairs(methods) do
         if type(control[method]) == "function" then
             local ok, value = pcall(control[method])
@@ -624,6 +625,15 @@ function Service.step(runStabilizer)
     local now = os.clock()
     local dt = math.max(now - lastTime, 0.001)
     lastTime = now
+    local d = Service.data
+    d.manual_active = false
+    local manualActive = applyManualControls()
+    if manualActive then
+        d.auto_enabled = false
+        d.dist = nil
+        d.progress = 0
+        setAutopilotRedstone(false)
+    end
     local ok, angles = pcall(function() return gimbal.getAngles() end)
     if not ok or not angles then return end
     local rollAngle  = angles[1]
@@ -673,7 +683,6 @@ function Service.step(runStabilizer)
     if Service.data.enabled and runStabilizer then
         fl, fr, bl, br = setMotorSpeeds(fl, fr, bl, br)
     end
-    local d = Service.data
     d.roll = rollAngle
     d.pitch = pitchAngle
     d.rollOut = rollOut
@@ -687,15 +696,10 @@ function Service.step(runStabilizer)
     d.pitchBias = pitchPID.bias
     d.rollKd = rollPID.kd
     d.pitchKd = pitchPID.kd
-    d.manual_active = false
     d.tick = tick
     d.dt = dt
-    local manualActive = applyManualControls()
     if manualActive then
-        d.auto_enabled = false
-        d.dist = nil
-        d.progress = 0
-        setAutopilotRedstone(false)
+        d.manual_active = true
     elseif d.auto_enabled and motor_speed_left and motor_speed_right and motor_steer then
         local cx, cy, cz = d.x, d.y, d.z
         if cx and cz then
