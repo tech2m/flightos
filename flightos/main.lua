@@ -64,8 +64,13 @@ local tabHitboxes = {}
 local needsRedraw = true
 local guiRunning = true
 local contentWindow = window.create(term.current(), 1, 2, w, h - 1)
+local lastSystemEnabled = false
 local function drawGUI(forceClear)
     term.current().setCursorBlink(false)
+    if Service.data.system_enabled ~= lastSystemEnabled then
+        forceClear = true
+        lastSystemEnabled = Service.data.system_enabled
+    end
     if not Service.data.system_enabled then
         term.setBackgroundColor(colors.black)
         term.clear()
