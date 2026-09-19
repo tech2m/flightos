@@ -232,6 +232,12 @@ local function updateMonitor()
     end
     monitor.setBackgroundColor(colors.black)
     monitor.clear()
+    if not d.system_enabled then
+        fillLine(1, colors.gray)
+        centerText(1, "Unsinkbar 4", colors.white, colors.gray)
+        centerText(math.floor(mh / 2) - 1, "DISPLAY DEAKTIVIERT", colors.orange, colors.black)
+        return
+    end
     fillLine(1, colors.blue)
     centerText(1, "Unsinkbar 4", colors.white, colors.blue)
     if mw >= 38 then
@@ -625,6 +631,7 @@ function Service.step(runStabilizer)
         Service.data.manual_active = false
         Service.data.dist = nil
         Service.data.progress = 0
+        updateMonitor()
         return
     end
     if test_running then

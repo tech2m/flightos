@@ -74,6 +74,21 @@ local function drawGUI(forceClear)
     if not Service.data.system_enabled then
         term.setBackgroundColor(colors.black)
         term.clear()
+        local function fillLine(y, background)
+            term.setCursorPos(1, y)
+            term.setBackgroundColor(background)
+            term.write(string.rep(" ", w))
+        end
+        local function centerText(y, text, foreground, background)
+            local x = math.floor((w - #text) / 2) + 1
+            term.setCursorPos(x, y)
+            term.setBackgroundColor(background)
+            term.setTextColor(foreground)
+            term.write(text)
+        end
+        fillLine(1, colors.gray)
+        centerText(1, "Unsinkbar 4", colors.white, colors.gray)
+        centerText(math.floor(h / 2) - 1, "DISPLAY DEAKTIVIERT", colors.orange, colors.black)
         tabHitboxes = {}
         needsRedraw = false
         return
