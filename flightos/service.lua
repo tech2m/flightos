@@ -115,11 +115,27 @@ local function normalizedControl(control, inputMax)
     end
     return clamp(value, -1, 1)
 end
+local function normalizedSteering(control)
+    if not control then return nil end
+    local methods = {"getWheelAngle", "getAngle", "getRotation", "getValue", "getPosition"}
+    for _, method in ipairs(methods) do
+        if type(control[method]) == "function" then
+            local ok, value = pcall(control[method])
+            if ok and type(value) == "number" then
+                if math.abs(value) > 1 then
+                    value = value / 90
+                end
+                return clamp(value, -1, 1)
+            end
+        end
+    end
+    return nil
+end
 local function applyManualControls()
     if not cfg.manual_enabled then return false end
     local propeller = normalizedControl(manual_propeller, 15)
     local thrust = normalizedControl(manual_thrust, 15)
-    local steering = normalizedControl(manual_steering, 90)
+    local steering = normalizedSteering(manual_steering)
     if not propeller and not thrust and not steering then return false end
     local thrustSpeed = (thrust or 0) * (cfg.manual_thrust_max or 128)
     local thrustSteer = (steering or 0) * (cfg.manual_thrust_steer_max or cfg.manual_thrust_max or 128)
@@ -750,24 +766,14 @@ function Service.step(runStabilizer)
                     derr = math.atan2(math.sin(derr), math.cos(derr))
                     local deriv = derr / dt
                     prev_err = err
-                    steer_tick_counter = steer_tick_counter + 1
-                    if steer_tick_counter >= 20 then
-                        steer_tick_counter = 0
-                    end
                     local abs_err = math.abs(err)
-                    local active_ticks = 0
-                    if abs_err < 0.03 then
-                        active_ticks = 0
-                    elseif abs_err > 0.20 then
-                        active_ticks = 20
-                    else
-                        local kp_factor = (cfg.auto_steer_kp or 80.0) / 80.0
-                        active_ticks = math.floor(clamp((abs_err / 0.20) * 8 * kp_factor * steer_blend, 2, 12))
-                    end
-                    if steer_tick_counter < active_ticks then
-                        local max_steer = cfg.auto_steer_max or 128
-                        local sign = err > 0 and 1 or -1
-                        steer_speed = sign * max_steer
+                    local kp_factor = (cfg.auto_steer_kp or 80.0) / 80.0
+                    local kd_factor = (cfg.auto_steer_kd or 15.0) / 15.0
+                    local proportional = (abs_err / 0.20) * kp_factor
+                    local damping = math.abs(deriv) * kd_factor * 0.02
+                    local turn_strength = clamp((proportional - damping) * steer_blend, 0, 1)
+                    if abs_err >= 0.03 then
+                        steer_speed = (err > 0 and 1 or -1) * (cfg.auto_steer_max or 128) * turn_strength
                         if cfg.steer_invert then
                             steer_speed = -steer_speed
                         end
