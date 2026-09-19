@@ -66,6 +66,13 @@ local guiRunning = true
 local contentWindow = window.create(term.current(), 1, 2, w, h - 1)
 local function drawGUI(forceClear)
     term.current().setCursorBlink(false)
+    if not Service.data.system_enabled then
+        term.setBackgroundColor(colors.black)
+        term.clear()
+        tabHitboxes = {}
+        needsRedraw = false
+        return
+    end
     if forceClear then
         term.current().setCursorPos(1, 1)
         term.setBackgroundColor(colors.black)
@@ -102,7 +109,12 @@ local function guiLoop()
         end
         local event = { os.pullEvent() }
         local handled = false
-        if event[1] == "mouse_click" and event[4] == 1 then
+        if not Service.data.system_enabled then
+            if event[1] == "timer" and event[2] == refreshTimer then
+                needsRedraw = true
+                refreshTimer = os.startTimer(0.25)
+            end
+        elseif event[1] == "mouse_click" and event[4] == 1 then
             local mx = event[3]
             for i, hb in pairs(tabHitboxes) do
                 if mx >= hb.x1 and mx <= hb.x2 then
@@ -112,7 +124,7 @@ local function guiLoop()
                 end
             end
         end
-        if event[1] == "key" then
+        if Service.data.system_enabled and event[1] == "key" then
             local key = event[2]
             for i = 1, math.min(9, #apps) do
                 if key == keys["f" .. i] then
@@ -131,7 +143,7 @@ local function guiLoop()
                 handled = true
             end
         end
-        if not handled then
+        if Service.data.system_enabled and not handled then
             local app = apps[activeTab]
             if app and app.handleEvent then
                 local appHandled, extra = app.handleEvent(event, Service, cfg, contentWindow)

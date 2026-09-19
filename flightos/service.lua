@@ -21,6 +21,7 @@ Service.data = {
     rollKd = 0, pitchKd = 0,
     tick = 0, dt = 0,
     enabled = false,
+    system_enabled = false,
     logging = false,
     auto_enabled = false,
     manual_active = false,
@@ -75,6 +76,22 @@ local function stopThrustMotors()
             function() motor_speed_left.setTargetSpeed(0) end,
             function() motor_speed_right.setTargetSpeed(0) end
         )
+    end)
+end
+local function readSystemEnabled()
+    local side = cfg and cfg.system_enable_side or "back"
+    local ok, powered = pcall(redstone.getInput, side)
+    if not ok then return false end
+    if cfg and cfg.system_enable_active_high == false then
+        return not powered
+    end
+    return powered
+end
+local function stopAllOutputs()
+    stopMotors()
+    stopThrustMotors()
+    pcall(function()
+        if motor_steer then motor_steer.setTargetSpeed(0) end
     end)
 end
 local function findByType(peripheralType, index)
@@ -200,15 +217,23 @@ local function updateMonitor()
     if not monitor then return end
     local d = Service.data
     local mw, mh = monitor.getSize()
+    local function fillLine(y, background)
+        monitor.setCursorPos(1, y)
+        monitor.setBackgroundColor(background)
+        monitor.write(string.rep(" ", mw))
+    end
+    local function centerText(y, text, foreground, background)
+        local x = math.floor((mw - #text) / 2) + 1
+        monitor.setCursorPos(x, y)
+        monitor.setBackgroundColor(background)
+        monitor.setTextColor(foreground)
+        monitor.write(text)
+        monitor.setBackgroundColor(colors.black)
+    end
     monitor.setBackgroundColor(colors.black)
     monitor.clear()
-    monitor.setTextColor(colors.cyan)
-    monitor.setCursorPos(1, 1)
-    monitor.write(string.rep("=", mw))
-    local headerText = " FlightOS Telemetry v2.1 "
-    local hx = math.floor((mw - #headerText) / 2) + 1
-    monitor.setCursorPos(hx, 1)
-    monitor.write(headerText)
+    fillLine(1, colors.blue)
+    centerText(1, "Unsinkbar 4", colors.white, colors.blue)
     if mw >= 38 then
         monitor.setCursorPos(2, 3)
         monitor.setTextColor(colors.lightGray)
@@ -237,13 +262,13 @@ local function updateMonitor()
         monitor.write(string.format("%+5.1f ", d.pitch))
         monitor.setCursorPos(21, 4)
         monitor.setTextColor(colors.gray)
-        monitor.write("GPS : ")
+        monitor.write("POS : ")
         if d.x then
             monitor.setTextColor(colors.white)
             monitor.write(string.format("%d %d ", math.floor(d.x+0.5), math.floor(d.z+0.5)))
         else
             monitor.setTextColor(colors.red)
-            monitor.write("OFFLINE  ")
+            monitor.write("GPS OFFLINE  ")
         end
         monitor.setCursorPos(2, 5)
         monitor.setTextColor(colors.gray)
@@ -263,12 +288,12 @@ local function updateMonitor()
         monitor.setCursorPos(21, 6)
         if d.auto_enabled and d.dist then
             monitor.setTextColor(colors.gray)
-            monitor.write("Dist: ")
+            monitor.write("Dest: ")
             monitor.setTextColor(colors.white)
             monitor.write(string.format("%d ", math.floor(d.dist + 0.5)))
         else
             monitor.setTextColor(colors.gray)
-            monitor.write("Dist: ----")
+            monitor.write("Dest: ----")
         end
         monitor.setCursorPos(2, 7)
         if d.auto_enabled and d.dist then
@@ -420,12 +445,12 @@ local function updateMonitor()
         local Music = package.loaded["music_service"]
         if Music and Music.state.playing and Music.state.now_playing then
             monitor.setTextColor(colors.lime)
-            local txt = "🎵 " .. Music.state.now_playing.name .. " - " .. Music.state.now_playing.artist
+            local txt = Music.state.now_playing.name .. " - " .. Music.state.now_playing.artist
             if #txt > mw - 4 then txt = txt:sub(1, mw - 4) end
             monitor.write(txt)
         else
             monitor.setTextColor(colors.gray)
-            monitor.write("🎵 Player Idle")
+            monitor.write("Player Idle")
         end
     end
 end
@@ -522,12 +547,15 @@ local function setAutopilotRedstone(powered)
     end)
 end
 function Service.setEnabled(en)
+    if en and not readSystemEnabled() then return false end
     Service.data.enabled = en
     if not en then
         stopMotors()
     end
+    return true
 end
 function Service.setAutoEnabled(en)
+    if en and not readSystemEnabled() then return false end
     Service.data.auto_enabled = en
     setAutopilotRedstone(en)
     if not en then
@@ -583,6 +611,22 @@ end
 local monitorTick = 0
 function Service.step(runStabilizer)
     if not running then return end
+    local systemEnabled = readSystemEnabled()
+    Service.data.system_enabled = systemEnabled
+    if not systemEnabled then
+        if Service.data.enabled or Service.data.auto_enabled or test_running then
+            Service.data.enabled = false
+            Service.data.auto_enabled = false
+            test_running = false
+            Service.data.test_msg = nil
+            setAutopilotRedstone(false)
+        end
+        stopAllOutputs()
+        Service.data.manual_active = false
+        Service.data.dist = nil
+        Service.data.progress = 0
+        return
+    end
     if test_running then
         local now = os.clock()
         local elapsed = now - test_phase_start

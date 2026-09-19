@@ -51,6 +51,7 @@ local function buildTelemetry()
 end
 local function handleCommand(msg)
     if type(msg) ~= "table" or msg.type ~= "cmd" then return end
+    if service.data.system_enabled == false then return end
     if msg.cmd == "set_target" then
         cfg.target_x = tonumber(msg.x) or cfg.target_x
         cfg.target_y = tonumber(msg.y) or cfg.target_y
