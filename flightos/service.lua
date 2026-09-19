@@ -1,7 +1,7 @@
 local PID = require("pid")
 local Service = {}
 local gimbal, motor_BR, motor_BL, motor_FL, motor_FR, monitor
-local motor_speed, motor_steer
+local motor_speed_left, motor_speed_right, motor_steer
 local manual_propeller, manual_thrust, manual_steering
 local rollPID, pitchPID
 local cfg
@@ -59,6 +59,24 @@ local function stopMotors()
         )
     end)
 end
+local function setThrustMotorSpeeds(left, right, outputMax)
+    local maxSpeed = outputMax or cfg.motor_max
+    left = clamp(left, -maxSpeed, maxSpeed)
+    right = clamp(right, -maxSpeed, maxSpeed)
+    parallel.waitForAll(
+        function() motor_speed_left.setTargetSpeed(left) end,
+        function() motor_speed_right.setTargetSpeed(right) end
+    )
+    return left, right
+end
+local function stopThrustMotors()
+    pcall(function()
+        parallel.waitForAll(
+            function() motor_speed_left.setTargetSpeed(0) end,
+            function() motor_speed_right.setTargetSpeed(0) end
+        )
+    end)
+end
 local function findByType(peripheralType, index)
     local matches = {}
     for _, name in ipairs(peripheral.getNames()) do
@@ -103,8 +121,14 @@ local function applyManualControls()
     local thrust = normalizedControl(manual_thrust, 15)
     local steering = normalizedControl(manual_steering, 90)
     if not propeller and not thrust and not steering then return false end
-    if motor_speed then
-        pcall(motor_speed.setTargetSpeed, (thrust or 0) * (cfg.manual_thrust_max or 128))
+    local thrustSpeed = (thrust or 0) * (cfg.manual_thrust_max or 128)
+    local thrustSteer = (steering or 0) * (cfg.manual_thrust_steer_max or cfg.manual_thrust_max or 128)
+    if motor_speed_left and motor_speed_right then
+        setThrustMotorSpeeds(
+            thrustSpeed - thrustSteer,
+            thrustSpeed + thrustSteer,
+            cfg.manual_thrust_max or 512
+        )
     end
     if motor_steer then
         pcall(motor_steer.setTargetSpeed, (steering or 0) * (cfg.manual_steering_max or 128))
@@ -411,7 +435,8 @@ function Service.applyConfig(config)
         motor_FL = peripheral.wrap(cfg.motor_fl_id)
         motor_FR = peripheral.wrap(cfg.motor_fr_id)
         monitor  = peripheral.find("monitor")
-        motor_speed = peripheral.wrap(cfg.motor_speed_id)
+        motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
+        motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
         motor_steer = peripheral.wrap(cfg.motor_steer_id)
         manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
         manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
@@ -426,7 +451,8 @@ function Service.init(config)
     motor_FL = peripheral.wrap(cfg.motor_fl_id)
     motor_FR = peripheral.wrap(cfg.motor_fr_id)
     monitor  = peripheral.find("monitor")
-    motor_speed = peripheral.wrap(cfg.motor_speed_id)
+    motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
+    motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
     motor_steer = peripheral.wrap(cfg.motor_steer_id)
     manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
     manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
@@ -436,6 +462,8 @@ function Service.init(config)
     if not motor_BL then return false, "Motor BL not found" end
     if not motor_FL then return false, "Motor FL not found" end
     if not motor_FR then return false, "Motor FR not found" end
+    if not motor_speed_left then return false, "Left thrust motor not found" end
+    if not motor_speed_right then return false, "Right thrust motor not found" end
     rollPID  = PID.new(cfg.roll_kp, cfg.roll_ki, cfg.roll_kd)
     pitchPID = PID.new(cfg.pitch_kp, cfg.pitch_ki, cfg.pitch_kd)
     Service.applyConfig(cfg)
@@ -496,7 +524,7 @@ function Service.setAutoEnabled(en)
         auto_start_time = nil
         steer_tick_counter = 0
         pcall(function()
-            if motor_speed then motor_speed.setTargetSpeed(0) end
+            stopThrustMotors()
             if motor_steer then motor_steer.setTargetSpeed(0) end
         end)
     end
@@ -571,7 +599,7 @@ function Service.step(runStabilizer)
             end
         end
         pcall(function()
-            if motor_speed then motor_speed.setTargetSpeed(0) end
+            stopThrustMotors()
             if motor_steer then motor_steer.setTargetSpeed(0) end
         end)
         updateMonitor()
@@ -652,7 +680,7 @@ function Service.step(runStabilizer)
         d.dist = nil
         d.progress = 0
         setAutopilotRedstone(false)
-    elseif d.auto_enabled and motor_speed and motor_steer then
+    elseif d.auto_enabled and motor_speed_left and motor_speed_right and motor_steer then
         local cx, cy, cz = d.x, d.y, d.z
         if cx and cz then
             local tx = cfg.target_x or 0
@@ -712,11 +740,8 @@ function Service.step(runStabilizer)
                 end
                 if cfg.speed_invert then base_speed = -base_speed end
                 local speed = clamp(base_speed, -max_speed, max_speed)
-                if math.abs(speed - last_set_speed) >= 2 then
-                    pcall(motor_speed.setTargetSpeed, speed)
-                    last_set_speed = speed
-                end
                 local steer_blend = math.min(1.0, math.max(0, elapsed / 3.0))
+                local steer_speed = 0
                 if is_moving and steer_blend > 0 and dist > reverse_dist then
                     local target_h = math.atan2(dx, dz)
                     local err = target_h - current_heading
@@ -739,7 +764,6 @@ function Service.step(runStabilizer)
                         local kp_factor = (cfg.auto_steer_kp or 80.0) / 80.0
                         active_ticks = math.floor(clamp((abs_err / 0.20) * 8 * kp_factor * steer_blend, 2, 12))
                     end
-                    local steer_speed = 0
                     if steer_tick_counter < active_ticks then
                         local max_steer = cfg.auto_steer_max or 128
                         local sign = err > 0 and 1 or -1
@@ -748,22 +772,23 @@ function Service.step(runStabilizer)
                             steer_speed = -steer_speed
                         end
                     end
-                    if math.abs(steer_speed - last_set_steer) >= 2 then
-                        pcall(motor_steer.setTargetSpeed, steer_speed)
-                        last_set_steer = steer_speed
-                    end
                 else
                     steer_tick_counter = 0
-                    if math.abs(0 - last_set_steer) >= 2 then
-                        pcall(motor_steer.setTargetSpeed, 0)
-                        last_set_steer = 0
-                    end
                 end
+                local thrustSteer = steer_speed * (cfg.auto_thrust_steer_mix or 1.0)
+                setThrustMotorSpeeds(
+                    speed - thrustSteer,
+                    speed + thrustSteer,
+                    max_speed
+                )
+                last_set_speed = speed
+                last_set_steer = steer_speed
+                pcall(motor_steer.setTargetSpeed, steer_speed)
             else
-                pcall(motor_speed.setTargetSpeed, 0)
+                stopThrustMotors()
                 last_set_speed = 0
-                pcall(motor_steer.setTargetSpeed, 0)
                 last_set_steer = 0
+                pcall(motor_steer.setTargetSpeed, 0)
                 d.auto_enabled = false
                 d.dist = nil
                 d.progress = 100

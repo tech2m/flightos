@@ -18,6 +18,8 @@ local defaults = {
     log_enabled = false,
     stab_enabled = true,
     motor_speed_id = "Create_RotationSpeedController_7",
+    motor_speed_left_id = "Create_RotationSpeedController_11",
+    motor_speed_right_id = "Create_RotationSpeedController_10",
     motor_steer_id = "Create_RotationSpeedController_9",
     target_x = 0,
     target_y = 64,
@@ -37,8 +39,10 @@ local defaults = {
     manual_steering_id = "steering_wheel_0",
     manual_propeller_max = 1024,
     manual_thrust_max = 512,
+    manual_thrust_steer_max = 512,
     manual_steering_max = 256,
     manual_propeller_invert = true,
+    auto_thrust_steer_mix = 1.0,
 }
 function Config.load()
     local cfg = {}
@@ -54,6 +58,9 @@ function Config.load()
             if type(loaded) == "table" then
                 for k, v in pairs(loaded) do
                     cfg[k] = v
+                end
+                if loaded.motor_speed_id and not loaded.motor_speed_left_id then
+                    cfg.motor_speed_left_id = loaded.motor_speed_id
                 end
                 if loaded.motor_min == -128 then cfg.motor_min = -256 end
                 if loaded.motor_max == 128 then cfg.motor_max = 256 end

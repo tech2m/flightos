@@ -6,7 +6,6 @@ local fields = {
     { key = "target_x",       label = "Target X",   is_string = true },
     { key = "target_y",       label = "Target Y",   is_string = true },
     { key = "target_z",       label = "Target Z",   is_string = true },
-    { key = "motor_speed_id", label = "Speed ID",  is_string = true },
     { key = "motor_steer_id", label = "Steer ID",  is_string = true },
     { key = "speed_invert",   label = "Inv Speed", is_string = true },
     { key = "steer_invert",   label = "Inv Steer", is_string = true },

@@ -33,7 +33,7 @@ The main screen displays real-time ship pitch and roll angles, global coordinate
 ### Manual Controls
 Connect two CC:Tweaked throttle levers and one steering wheel to the ship computer. Configure their peripheral names in **Settings** as `Prop Lever ID`, `Thrust Lever ID`, and `Steering Wheel ID`.
 
-The propeller lever controls all four outer propellers, the thrust lever controls forward thrust, and the steering wheel controls the steering motor. Manual input takes priority over the autopilot. Set an unused ID to `none` to disable that input.
+The propeller lever controls all four outer propellers, the thrust lever controls both thrust motors together, and the steering wheel applies differential thrust between the left and right thrust motors in addition to the steering motor. Manual input takes priority over the autopilot. Configure `Left Thrust ID` and `Right Thrust ID` in **Settings**. Set an unused ID to `none` to disable that input.
 
 ### Autopilot Configuration
 ![Autopilot](flightos/screenshots/pc_autopilot_page.png)
@@ -134,7 +134,7 @@ The rudder bearing assembly automatically centers itself. Autopilot commands are
 ### Throttle & Propulsion
 ![Speed Control Mechanism](flightos/screenshots/speed_control_mechanism.png)
 ![Speed Control Mechanism 2](flightos/screenshots/speed_control_mechanism_2.png)
-The primary propulsion drives are regulated through variable mechanical speed controllers, permitting cruise speeds and reverse braking.
+The left and right primary propulsion drives are regulated through variable mechanical speed controllers. The autopilot combines equal thrust for cruise and reverse braking with differential thrust for turns, while also pulsing the rear steering motor.
 
 ### System Cabling
 ![Network Cables](flightos/screenshots/network_cables.png)
