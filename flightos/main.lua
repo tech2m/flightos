@@ -88,7 +88,7 @@ local function drawGUI(forceClear)
         end
         fillLine(1, colors.gray)
         centerText(1, "Unsinkbar 4", colors.white, colors.gray)
-        centerText(math.floor(h / 2) - 1, "DISPLAY DEAKTIVIERT", colors.orange, colors.black)
+        centerText(math.floor((h + 1) / 2), "DISPLAY DEAKTIVIERT", colors.orange, colors.black)
         tabHitboxes = {}
         needsRedraw = false
         return
