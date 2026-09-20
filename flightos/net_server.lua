@@ -30,6 +30,7 @@ local function buildTelemetry()
             manual_propeller = d.manual_propeller,
             manual_thrust = d.manual_thrust,
             manual_steering = d.manual_steering,
+            aux_enabled = d.aux_enabled,
             dist = d.dist,
             progress = d.progress,
             fl = d.fl, fr = d.fr,
@@ -98,6 +99,10 @@ local function handleCommand(msg)
         service.setAutoEnabled(not service.data.auto_enabled)
     elseif msg.cmd == "toggle_stab" then
         service.setEnabled(not service.data.enabled)
+    elseif msg.cmd == "toggle_aux" then
+        if service.setAuxEnabled then
+            service.setAuxEnabled(not service.data.aux_enabled)
+        end
     elseif msg.cmd == "set_config" then
         local key = msg.key
         local val = msg.value

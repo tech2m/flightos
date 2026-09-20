@@ -2,6 +2,7 @@ local PID = require("pid")
 local Service = {}
 local gimbal, motor_BR, motor_BL, motor_FL, motor_FR, monitor
 local motor_speed_left, motor_speed_right, motor_steer
+local aux_propeller_left, aux_propeller_right
 local manual_propeller, manual_thrust, manual_steering
 local rollPID, pitchPID
 local cfg
@@ -28,6 +29,7 @@ Service.data = {
     manual_propeller = 0,
     manual_thrust = 0,
     manual_steering = 0,
+    aux_enabled = false,
     x = nil, y = nil, z = nil,
     dist = nil, progress = 0,
     test_msg = nil,
@@ -78,6 +80,24 @@ local function stopThrustMotors()
         )
     end)
 end
+local function setAuxPropellerSpeed(speed)
+    if not aux_propeller_left and not aux_propeller_right then return end
+    local maxSpeed = cfg.manual_thrust_max or 512
+    speed = clamp(speed, -maxSpeed, maxSpeed)
+    pcall(function()
+        parallel.waitForAll(
+            function()
+                if aux_propeller_left then aux_propeller_left.setTargetSpeed(speed) end
+            end,
+            function()
+                if aux_propeller_right then aux_propeller_right.setTargetSpeed(speed) end
+            end
+        )
+    end)
+end
+local function stopAuxPropellers()
+    setAuxPropellerSpeed(0)
+end
 local function readSystemEnabled()
     local side = cfg and cfg.system_enable_side or "back"
     local ok, powered = pcall(redstone.getInput, side)
@@ -90,6 +110,7 @@ end
 local function stopAllOutputs()
     stopMotors()
     stopThrustMotors()
+    stopAuxPropellers()
     pcall(function()
         if motor_steer then motor_steer.setTargetSpeed(0) end
     end)
@@ -186,6 +207,7 @@ end
 local function applyManualControls()
     if not cfg.manual_enabled or not readManualSwitch() then
         stopThrustMotors()
+        stopAuxPropellers()
         if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         return false
     end
@@ -195,6 +217,7 @@ local function applyManualControls()
     if not propeller and not thrust and not steering then
         stopMotors()
         stopThrustMotors()
+        stopAuxPropellers()
         if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         return false
     end
@@ -206,6 +229,11 @@ local function applyManualControls()
             thrustSpeed + thrustSteer,
             cfg.manual_thrust_max or 512
         )
+    end
+    if Service.data.aux_enabled then
+        setAuxPropellerSpeed(thrustSpeed)
+    else
+        stopAuxPropellers()
     end
     if motor_steer then
         pcall(motor_steer.setTargetSpeed, (steering or 0) * (cfg.manual_steering_max or 128))
@@ -542,6 +570,8 @@ function Service.applyConfig(config)
         motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
         motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
         motor_steer = peripheral.wrap(cfg.motor_steer_id)
+        aux_propeller_left = peripheral.wrap(cfg.aux_propeller_left_id)
+        aux_propeller_right = peripheral.wrap(cfg.aux_propeller_right_id)
         manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
         manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
         manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
@@ -558,6 +588,8 @@ function Service.init(config)
     motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
     motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
     motor_steer = peripheral.wrap(cfg.motor_steer_id)
+    aux_propeller_left = peripheral.wrap(cfg.aux_propeller_left_id)
+    aux_propeller_right = peripheral.wrap(cfg.aux_propeller_right_id)
     manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
     manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
     manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
@@ -615,6 +647,13 @@ function Service.setEnabled(en)
         stopMotors()
     end
     return true
+end
+function Service.setAuxEnabled(en)
+    Service.data.aux_enabled = en == true
+    if not Service.data.aux_enabled then
+        stopAuxPropellers()
+    end
+    return Service.data.aux_enabled
 end
 function Service.setAutoEnabled(en)
     if en and not readSystemEnabled() then return false end

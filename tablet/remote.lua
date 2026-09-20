@@ -222,7 +222,12 @@ local function drawCtrl()
         wrt(w - 7, 14, " IDLE  ", colors.white, colors.gray)
         wrt(2, 15, string.rep(" ", w - 2), colors.black, colors.black)
     end
-    wrt(1, 16, string.rep("-", w), colors.cyan, colors.black)
+    wrt(2, 16, " [V] Toggle Aux Propellers", colors.white, colors.black)
+    if data.aux_enabled then
+        wrt(w - 5, 16, " ON ", colors.black, colors.lime)
+    else
+        wrt(w - 5, 16, " OFF", colors.white, colors.red)
+    end
     wrt(2, 17, "Remote v" .. VERSION, colors.gray, colors.black)
     wrt(2, 18, "Channel: " .. CHANNEL, colors.gray, colors.black)
 end
@@ -377,6 +382,9 @@ local function handleCtrlEvent(event)
             return true
         elseif ch == "t" or ch == "е" then
             sendCmd({ cmd = "test_motors" })
+            return true
+        elseif ch == "v" or ch == "м" then
+            sendCmd({ cmd = "toggle_aux" })
             return true
         end
     end

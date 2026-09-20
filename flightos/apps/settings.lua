@@ -17,6 +17,8 @@ local fields = {
     { key = "motor_br_id", label = "BR Fan ID", is_string = true },
     { key = "motor_speed_left_id", label = "Left Thrust ID", is_string = true },
     { key = "motor_speed_right_id", label = "Right Thrust ID", is_string = true },
+    { key = "aux_propeller_left_id", label = "Aux Left ID", is_string = true },
+    { key = "aux_propeller_right_id", label = "Aux Right ID", is_string = true },
     { key = "system_enable_side", label = "Enable Redstone Side", is_string = true },
     { key = "manual_enable_side", label = "Manual Redstone Side", is_string = true },
     { key = "manual_propeller_id", label = "Prop Lever ID", is_string = true },
