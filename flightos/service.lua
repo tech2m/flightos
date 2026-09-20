@@ -785,7 +785,7 @@ function Service.step(runStabilizer)
     local fr = -pitchOut - rollOut
     local bl =  pitchOut + rollOut
     local br =  pitchOut - rollOut
-    if Service.data.enabled and runStabilizer then
+    if Service.data.enabled and runStabilizer and not manualActive then
         fl, fr, bl, br = setMotorSpeeds(fl, fr, bl, br)
     end
     d.roll = rollAngle
