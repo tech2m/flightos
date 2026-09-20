@@ -135,13 +135,15 @@ local function normalizedControl(control, inputMax)
 end
 local function normalizedThrottle(control)
     if not control then return nil end
-    local methods = {"getPosition", "getPercent", "getValue", "getPower"}
+    local methods = {"getState", "getPosition", "getPercent", "getValue", "getPower"}
     for _, method in ipairs(methods) do
         if type(control[method]) == "function" then
             local ok, value = pcall(control[method])
             if ok and type(value) == "number" then
                 if method == "getPercent" then
                     return clamp(value / 100, 0, 1)
+                elseif method == "getState" then
+                    return clamp(value / 15, 0, 1)
                 elseif value >= 0 and value <= 1 then
                     return value
                 elseif value <= 15 then
