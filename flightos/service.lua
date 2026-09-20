@@ -99,6 +99,9 @@ end
 local function stopAuxPropellers()
     setAuxPropellerSpeed(0)
 end
+local function auxOutputSpeed()
+    return cfg.manual_thrust_max or 512
+end
 local function readSystemEnabled()
     local side = cfg and cfg.system_enable_side or "back"
     local ok, powered = pcall(redstone.getInput, side)
@@ -209,7 +212,11 @@ local function applyManualControls()
     if not cfg.manual_enabled or not readManualSwitch() then
         Service.data.aux_thrust = 0
         stopThrustMotors()
-        stopAuxPropellers()
+        if Service.data.aux_enabled then
+            setAuxPropellerSpeed(auxOutputSpeed())
+        else
+            stopAuxPropellers()
+        end
         if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         return false
     end
@@ -220,7 +227,11 @@ local function applyManualControls()
         Service.data.aux_thrust = 0
         stopMotors()
         stopThrustMotors()
-        stopAuxPropellers()
+        if Service.data.aux_enabled then
+            setAuxPropellerSpeed(auxOutputSpeed())
+        else
+            stopAuxPropellers()
+        end
         if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         return false
     end
@@ -233,11 +244,7 @@ local function applyManualControls()
             cfg.manual_thrust_max or 512
         )
     end
-    if Service.data.aux_enabled then
-        setAuxPropellerSpeed(thrustSpeed)
-    else
-        stopAuxPropellers()
-    end
+    setAuxPropellerSpeed(thrustSpeed)
     if motor_steer then
         pcall(motor_steer.setTargetSpeed, (steering or 0) * (cfg.manual_steering_max or 128))
     end
@@ -657,7 +664,9 @@ function Service.setEnabled(en)
 end
 function Service.setAuxEnabled(en)
     Service.data.aux_enabled = en == true
-    if not Service.data.aux_enabled then
+    if Service.data.aux_enabled then
+        setAuxPropellerSpeed(auxOutputSpeed())
+    else
         stopAuxPropellers()
     end
     return Service.data.aux_enabled
