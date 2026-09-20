@@ -312,6 +312,7 @@ end
 local function updateMonitor()
     if not monitor then return end
     local d = Service.data
+    monitor.setTextScale(d.emergency_stop and 2.0 or 0.5)
     local mw, mh = monitor.getSize()
     local function fillLine(y, background)
         monitor.setCursorPos(1, y)
@@ -336,7 +337,7 @@ local function updateMonitor()
             monitor.setCursorPos(1, y)
             monitor.write(string.rep(" ", mw))
         end
-        centerText(math.max(1, math.floor((mh - 2) / 2)), "!!! NOT-AUS !!!", colors.white, blinkOn and colors.red or colors.black)
+        centerText(math.max(1, math.floor((mh - 1) / 2)), "!!! NOT-AUS !!!", colors.white, blinkOn and colors.red or colors.black)
         return
     end
     if not d.system_enabled then

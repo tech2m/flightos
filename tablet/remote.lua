@@ -200,7 +200,6 @@ local function drawCtrl()
         return
     end
     wrt(2, 4, "Quick Controls:", colors.cyan, colors.black)
-    wrt(2, 5, " [E] NOT-AUS", colors.white, colors.red)
     wrt(2, 6, " [A] Toggle Autopilot", colors.white, colors.black)
     if data.auto_enabled then
         wrt(w - 5, 6, " ON ", colors.black, colors.lime)
@@ -583,10 +582,6 @@ while true do
     end
     if event[1] == "mouse_click" then
         local mx = event[3]
-        if activeTab == 3 and not data.emergency_stop and event[4] == 5 and mx >= 2 and mx <= 14 then
-            sendCmd({ cmd = "emergency_stop" })
-            draw()
-        end
         if event[4] == 1 then
             local x = 1
             for i, name in ipairs(tabNames) do
