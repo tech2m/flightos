@@ -547,8 +547,6 @@ while true do
         elseif key == keys.f3 then switchTab(3)
         elseif key == keys.f4 then switchTab(4)
         elseif key == keys.f5 then switchTab(5)
-        elseif key == keys.tab then
-            switchTab((activeTab % #tabNames) + 1)
         end
     end
     if event[1] == "mouse_click" and event[4] == 1 then
