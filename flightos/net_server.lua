@@ -33,6 +33,7 @@ local function buildTelemetry()
             aux_enabled = d.aux_enabled,
             aux_left_ready = d.aux_left_ready,
             aux_right_ready = d.aux_right_ready,
+            aux_thrust = d.aux_thrust,
             dist = d.dist,
             progress = d.progress,
             fl = d.fl, fr = d.fr,
