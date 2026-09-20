@@ -2,7 +2,7 @@ local PID = require("pid")
 local Service = {}
 local gimbal, motor_BR, motor_BL, motor_FL, motor_FR, monitor
 local motor_speed_left, motor_speed_right, motor_steer
-local manual_switch, manual_propeller, manual_thrust, manual_steering
+local manual_propeller, manual_thrust, manual_steering
 local rollPID, pitchPID
 local cfg
 local running = false
@@ -173,22 +173,13 @@ local function normalizedSteering(control)
     return nil
 end
 local function readManualSwitch()
-    if not manual_switch then return false end
-    local methods = {"getState", "isOn", "isPowered", "getInput", "getValue", "getPower"}
-    for _, method in ipairs(methods) do
-        if type(manual_switch[method]) == "function" then
-            local ok, value = pcall(manual_switch[method])
-            if ok then
-                if type(value) == "boolean" then return value end
-                if type(value) == "number" then return value > 0 end
-                if type(value) == "string" then
-                    value = value:lower()
-                    return value == "on" or value == "true" or value == "active" or value == "powered"
-                end
-            end
-        end
+    local side = cfg and cfg.manual_enable_side or "right"
+    local ok, powered = pcall(redstone.getInput, side)
+    if not ok then return false end
+    if cfg and cfg.manual_enable_active_high == false then
+        return not powered
     end
-    return false
+    return powered
 end
 local function applyManualControls()
     if not cfg.manual_enabled or not readManualSwitch() then
@@ -540,7 +531,6 @@ function Service.applyConfig(config)
         motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
         motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
         motor_steer = peripheral.wrap(cfg.motor_steer_id)
-        manual_switch = wrapConfigured(cfg.manual_switch_id, "manual_switch")
         manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
         manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
         manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
@@ -557,7 +547,6 @@ function Service.init(config)
     motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
     motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
     motor_steer = peripheral.wrap(cfg.motor_steer_id)
-    manual_switch = wrapConfigured(cfg.manual_switch_id, "manual_switch")
     manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
     manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
     manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
