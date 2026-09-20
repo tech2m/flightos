@@ -36,6 +36,7 @@ local defaults = {
     auto_steer_kp = 80,
     auto_steer_kd = 15,
     manual_enabled = true,
+    manual_switch_id = "none",
     manual_propeller_id = "throttle_lever_1",
     manual_thrust_id = "throttle_lever_2",
     manual_steering_id = "steering_wheel_0",

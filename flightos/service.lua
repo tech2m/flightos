@@ -2,7 +2,7 @@ local PID = require("pid")
 local Service = {}
 local gimbal, motor_BR, motor_BL, motor_FL, motor_FR, monitor
 local motor_speed_left, motor_speed_right, motor_steer
-local manual_propeller, manual_thrust, manual_steering
+local manual_switch, manual_propeller, manual_thrust, manual_steering
 local rollPID, pitchPID
 local cfg
 local running = false
@@ -133,6 +133,29 @@ local function normalizedControl(control, inputMax)
     end
     return clamp(value, -1, 1)
 end
+local function normalizedThrottle(control)
+    if not control then return nil end
+    local methods = {"getPosition", "getPercent", "getValue", "getPower"}
+    for _, method in ipairs(methods) do
+        if type(control[method]) == "function" then
+            local ok, value = pcall(control[method])
+            if ok and type(value) == "number" then
+                if method == "getPercent" then
+                    return clamp((value - 50) / 50, -1, 1)
+                elseif value < 0 and math.abs(value) <= 1 then
+                    return clamp(value, -1, 1)
+                elseif value <= 1 then
+                    return clamp(value * 2 - 1, -1, 1)
+                elseif value <= 15 then
+                    return clamp((value - 7.5) / 7.5, -1, 1)
+                else
+                    return clamp((value - 50) / 50, -1, 1)
+                end
+            end
+        end
+    end
+    return nil
+end
 local function normalizedSteering(control)
     if not control then return nil end
     local methods = {"getWheelAngle", "getAngle", "getRotation", "getValue", "getPosition", "getPercent"}
@@ -149,10 +172,32 @@ local function normalizedSteering(control)
     end
     return nil
 end
+local function readManualSwitch()
+    if not manual_switch then return false end
+    local methods = {"getState", "isOn", "isPowered", "getInput", "getValue", "getPower"}
+    for _, method in ipairs(methods) do
+        if type(manual_switch[method]) == "function" then
+            local ok, value = pcall(manual_switch[method])
+            if ok then
+                if type(value) == "boolean" then return value end
+                if type(value) == "number" then return value > 0 end
+                if type(value) == "string" then
+                    value = value:lower()
+                    return value == "on" or value == "true" or value == "active" or value == "powered"
+                end
+            end
+        end
+    end
+    return false
+end
 local function applyManualControls()
-    if not cfg.manual_enabled then return false end
-    local propeller = normalizedControl(manual_propeller, 15)
-    local thrust = normalizedControl(manual_thrust, 15)
+    if not cfg.manual_enabled or not readManualSwitch() then
+        stopThrustMotors()
+        if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
+        return false
+    end
+    local propeller = normalizedThrottle(manual_propeller)
+    local thrust = normalizedThrottle(manual_thrust)
     local steering = normalizedSteering(manual_steering)
     if not propeller and not thrust and not steering then return false end
     local thrustSpeed = (thrust or 0) * (cfg.manual_thrust_max or 128)
@@ -495,6 +540,7 @@ function Service.applyConfig(config)
         motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
         motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
         motor_steer = peripheral.wrap(cfg.motor_steer_id)
+        manual_switch = wrapConfigured(cfg.manual_switch_id, "manual_switch")
         manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
         manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
         manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
@@ -511,6 +557,7 @@ function Service.init(config)
     motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
     motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
     motor_steer = peripheral.wrap(cfg.motor_steer_id)
+    manual_switch = wrapConfigured(cfg.manual_switch_id, "manual_switch")
     manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
     manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
     manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
