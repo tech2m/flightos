@@ -281,12 +281,12 @@ local function updateMonitor()
     monitor.clear()
     if not d.system_enabled then
         fillLine(1, colors.gray)
-        centerText(1, "Unsinkbar 4", colors.white, colors.gray)
+        centerText(1, "Schiff Tommy", colors.white, colors.gray)
         centerText(math.floor((mh + 1) / 2), "DISPLAY DEAKTIVIERT", colors.orange, colors.black)
         return
     end
     fillLine(1, colors.blue)
-    centerText(1, "Unsinkbar 4", colors.white, colors.blue)
+    centerText(1, "Schiff Tommy", colors.white, colors.blue)
     if mw >= 38 then
         monitor.setCursorPos(2, 3)
         monitor.setTextColor(colors.lightGray)
