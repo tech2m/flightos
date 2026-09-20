@@ -18,8 +18,10 @@ local connected = false
 local missedPackets = 0
 local shipId = nil
 local activeTab = 1
-local tabNames = {"Dash", "Auto", "Ctrl", "Update"}
+local tabNames = {"Dash", "Auto", "Ctrl", "Music", "Update"}
 local updateUrl = ""
+local musicView = "now"
+local musicSelectedResult = 1
 local editFields = {
     { key = "target_x",       label = "Target X" },
     { key = "target_y",       label = "Target Y" },
@@ -233,6 +235,57 @@ local function drawUpdate()
     wrt(2, 12, "Press [U] to run update", colors.yellow, colors.black)
     wrt(2, h, padRight(" [Enter] Edit URL  [U] Run Update", w), colors.lightGray, colors.black)
 end
+local function drawMusic()
+    clearContent()
+    if not connected then
+        wrt(2, 5, "Waiting for signal...", colors.gray, colors.black)
+        return
+    end
+    local music = data.music or {}
+    wrt(2, 4, musicView == "now" and "Now Playing" or "Search", colors.cyan, colors.black)
+    if musicView == "search" then
+        wrt(2, 6, "[Enter] Search", colors.white, colors.black)
+        if music.search_error then
+            wrt(2, 8, padRight(music.search_error_msg or "Network error", w - 2), colors.red, colors.black)
+        elseif music.last_search and not music.search_results then
+            wrt(2, 8, "Searching...", colors.yellow, colors.black)
+        elseif music.search_results then
+            for i = 1, math.min(5, #music.search_results) do
+                local result = music.search_results[i]
+                local color = i == musicSelectedResult and colors.cyan or colors.white
+                wrt(2, 9 + (i - 1) * 2, string.format("%d. %s", i, result.name or "Unknown"), color, colors.black)
+                wrt(2, 10 + (i - 1) * 2, padRight("   " .. (result.artist or ""), w - 2), colors.lightGray, colors.black)
+            end
+        else
+            wrt(2, 8, "Enter a title or link to search", colors.gray, colors.black)
+        end
+        wrt(1, h - 1, padRight(" [1] Play  [2] Next  [3] Queue  [B] Back", w), colors.lightGray, colors.black)
+        wrt(1, h, padRight(" [Enter] Search  [Up/Dn] Select", w), colors.lightGray, colors.black)
+        return
+    end
+    if music.now_playing then
+        wrt(2, 6, padRight(music.now_playing.name or "Unknown", w - 2), colors.white, colors.black)
+        wrt(2, 7, padRight(music.now_playing.artist or "", w - 2), colors.lightGray, colors.black)
+    else
+        wrt(2, 6, "Not playing", colors.gray, colors.black)
+    end
+    local status = music.is_loading and "Loading..." or (music.is_error and "Network error" or (music.playing and "Playing" or "Paused"))
+    wrt(2, 9, padRight(status, w - 2), music.is_error and colors.red or colors.yellow, colors.black)
+    local loopLabel = music.looping == 1 and "Queue" or (music.looping == 2 and "Song" or "Off")
+    wrt(2, 11, "[P] Play/Pause  [N] Next", colors.white, colors.black)
+    wrt(2, 12, "[X] Stop  [L] Loop: " .. loopLabel, colors.white, colors.black)
+    local volume = music.volume or 0
+    wrt(2, 14, string.format("Volume: %d%%", math.floor(volume / 3 * 100 + 0.5)), colors.lightGray, colors.black)
+    wrt(2, 15, "[-] Down   [+] Up", colors.white, colors.black)
+    wrt(2, 17, "Queue: " .. tostring(music.queue_length or 0), colors.gray, colors.black)
+    if music.queue then
+        for i = 1, math.min(3, #music.queue) do
+            wrt(2, 17 + i, string.format("%d. %s", i, music.queue[i].name or "Unknown"), colors.white, colors.black)
+        end
+    end
+    wrt(1, h - 1, padRight(" [P] Play/Pause  [N] Next  [X] Stop", w), colors.lightGray, colors.black)
+    wrt(1, h, padRight(" [L] Loop  [+/-] Volume  [Tab] Search", w), colors.lightGray, colors.black)
+end
 local function draw()
     drawTabBar()
     drawStatusBar()
@@ -243,6 +296,8 @@ local function draw()
     elseif activeTab == 3 then
         drawCtrl()
     elseif activeTab == 4 then
+        drawMusic()
+    elseif activeTab == 5 then
         drawUpdate()
     end
 end
@@ -379,6 +434,73 @@ local function handleUpdateEvent(event)
     end
     return false
 end
+local function handleMusicEvent(event)
+    local music = data.music or {}
+    if event[1] == "key" then
+        if event[2] == keys.enter then
+            if musicView == "now" then
+                musicView = "search"
+            else
+                term.setCursorPos(2, 6)
+                term.setBackgroundColor(colors.white)
+                term.setTextColor(colors.black)
+                term.write(string.rep(" ", w - 2))
+                term.setCursorPos(3, 6)
+                term.setCursorBlink(true)
+                local input = read(nil, nil, nil, music.last_search or "")
+                term.setCursorBlink(false)
+                if input and input ~= "" then
+                    musicSelectedResult = 1
+                    sendCmd({ cmd = "music", action = "search", query = input })
+                end
+            end
+            return true
+        elseif musicView == "search" and event[2] == keys.up then
+            musicSelectedResult = math.max(1, musicSelectedResult - 1)
+            return true
+        elseif musicView == "search" and event[2] == keys.down then
+            musicSelectedResult = math.min(math.max(1, #(music.search_results or {})), musicSelectedResult + 1)
+            return true
+        end
+    elseif event[1] == "char" then
+        local ch = event[2]:lower()
+        if musicView == "search" and music.search_results and music.search_results[musicSelectedResult] then
+            if ch == "1" then
+                sendCmd({ cmd = "music", action = "result", mode = "play_now", index = musicSelectedResult })
+                musicView = "now"
+            elseif ch == "2" then
+                sendCmd({ cmd = "music", action = "result", mode = "play_next", index = musicSelectedResult })
+                musicView = "now"
+            elseif ch == "3" then
+                sendCmd({ cmd = "music", action = "result", mode = "queue", index = musicSelectedResult })
+                musicView = "now"
+            elseif ch == "b" or ch == "и" then
+                musicView = "now"
+            else
+                return false
+            end
+            return true
+        elseif musicView == "now" then
+            if ch == "p" or ch == "з" then
+                sendCmd({ cmd = "music", action = "toggle" })
+            elseif ch == "n" or ch == "т" then
+                sendCmd({ cmd = "music", action = "skip" })
+            elseif ch == "x" or ch == "х" then
+                sendCmd({ cmd = "music", action = "stop" })
+            elseif ch == "l" or ch == "д" then
+                sendCmd({ cmd = "music", action = "loop" })
+            elseif ch == "+" then
+                sendCmd({ cmd = "music", action = "volume", value = math.min(3, (music.volume or 0) + 0.1) })
+            elseif ch == "-" then
+                sendCmd({ cmd = "music", action = "volume", value = math.max(0, (music.volume or 0) - 0.1) })
+            else
+                return false
+            end
+            return true
+        end
+    end
+    return false
+end
 term.setBackgroundColor(colors.black)
 term.clear()
 draw()
@@ -424,6 +546,7 @@ while true do
         elseif key == keys.f2 then switchTab(2)
         elseif key == keys.f3 then switchTab(3)
         elseif key == keys.f4 then switchTab(4)
+        elseif key == keys.f5 then switchTab(5)
         elseif key == keys.tab then
             switchTab((activeTab % #tabNames) + 1)
         end
@@ -445,6 +568,8 @@ while true do
     elseif activeTab == 3 then
         if handleCtrlEvent(event) then draw() end
     elseif activeTab == 4 then
+        if handleMusicEvent(event) then draw() end
+    elseif activeTab == 5 then
         if handleUpdateEvent(event) then draw() end
     end
 end

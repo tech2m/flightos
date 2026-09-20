@@ -1,4 +1,5 @@
 local Config = require("config")
+local Music = require("music_service")
 local NetServer = {}
 local CHANNEL = 42
 local service, cfg
@@ -35,6 +36,40 @@ local function buildTelemetry()
             bl = d.bl, br = d.br,
             rollOut = d.rollOut,
             pitchOut = d.pitchOut,
+            music = {
+                playing = Music.state.playing,
+                is_loading = Music.state.is_loading,
+                is_error = Music.state.is_error,
+                volume = Music.state.volume,
+                now_playing = Music.state.now_playing and {
+                    name = Music.state.now_playing.name,
+                    artist = Music.state.now_playing.artist,
+                } or nil,
+                queue_length = #Music.state.queue,
+                queue = (function()
+                    local queue = {}
+                    for i = 1, math.min(3, #Music.state.queue) do
+                        queue[i] = { name = Music.state.queue[i].name }
+                    end
+                    return queue
+                end)(),
+                looping = Music.state.looping,
+                search_results = Music.state.search_results and (function()
+                    local results = {}
+                    for i = 1, math.min(5, #Music.state.search_results) do
+                        local result = Music.state.search_results[i]
+                        results[i] = {
+                            name = result.name,
+                            artist = result.artist,
+                            type = result.type,
+                        }
+                    end
+                    return results
+                end)() or nil,
+                last_search = Music.state.last_search,
+                search_error = Music.state.search_error,
+                search_error_msg = Music.state.search_error_msg,
+            },
         },
         cfg = {
             target_x = cfg.target_x,
@@ -84,6 +119,53 @@ local function handleCommand(msg)
         end
     elseif msg.cmd == "test_motors" then
         if service.startMotorTest then service.startMotorTest() end
+    elseif msg.cmd == "music" then
+        if msg.action == "search" then
+            Music.startSearch(msg.query)
+        elseif msg.action == "result" then
+            local result = Music.state.search_results and Music.state.search_results[tonumber(msg.index)]
+            if result then
+                if msg.mode == "play_now" then
+                    Music.state.queue = {}
+                    if result.type == "playlist" then
+                        for i = 2, #result.playlist_items do
+                            table.insert(Music.state.queue, result.playlist_items[i])
+                        end
+                        Music.playSong(result.playlist_items[1])
+                    else
+                        Music.playSong(result)
+                    end
+                elseif msg.mode == "play_next" then
+                    if result.type == "playlist" then
+                        for i = #result.playlist_items, 1, -1 do
+                            table.insert(Music.state.queue, 1, result.playlist_items[i])
+                        end
+                    else
+                        table.insert(Music.state.queue, 1, result)
+                    end
+                elseif msg.mode == "queue" then
+                    if result.type == "playlist" then
+                        for i = 1, #result.playlist_items do
+                            table.insert(Music.state.queue, result.playlist_items[i])
+                        end
+                    else
+                        table.insert(Music.state.queue, result)
+                    end
+                end
+            end
+        elseif msg.action == "toggle" then
+            Music.togglePlay()
+        elseif msg.action == "skip" then
+            Music.skipSong()
+        elseif msg.action == "stop" then
+            Music.stopSong()
+        elseif msg.action == "loop" then
+            Music.state.looping = (Music.state.looping + 1) % 3
+            os.queueEvent("audio_update")
+        elseif msg.action == "volume" then
+            Music.state.volume = math.max(0, math.min(3, tonumber(msg.value) or Music.state.volume))
+            os.queueEvent("audio_update")
+        end
     elseif msg.cmd == "ping" then
         if modem then
             modem.transmit(CHANNEL, CHANNEL, {
