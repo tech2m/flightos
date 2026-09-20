@@ -17,6 +17,7 @@ local remoteCfg = {}
 local connected = false
 local missedPackets = 0
 local shipId = nil
+local emergencyInputPrevious = false
 local activeTab = 1
 local tabNames = {"Dash", "Auto", "Ctrl", "Music", "Update"}
 local updateUrl = ""
@@ -531,6 +532,12 @@ while true do
     local event = {os.pullEvent()}
     local emergencyCleared = false
     local emergencyTriggered = false
+    local emergencyInput = redstone.getInput("bottom")
+    if emergencyInput and not emergencyInputPrevious then
+        sendCmd({ cmd = "emergency_stop" })
+        emergencyTriggered = true
+    end
+    emergencyInputPrevious = emergencyInput
     if event[1] == "modem_message" and event[3] == CHANNEL then
         local msg = event[5]
         if type(msg) == "table" and msg.type == "telemetry" then
