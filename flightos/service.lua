@@ -33,6 +33,7 @@ Service.data = {
     aux_left_ready = false,
     aux_right_ready = false,
     aux_thrust = 0,
+    emergency_stop = false,
     x = nil, y = nil, z = nil,
     dist = nil, progress = 0,
     test_msg = nil,
@@ -317,6 +318,18 @@ local function updateMonitor()
     end
     monitor.setBackgroundColor(colors.black)
     monitor.clear()
+    if d.emergency_stop then
+        local blinkOn = math.floor(os.clock() * 4) % 2 == 0
+        monitor.setBackgroundColor(blinkOn and colors.red or colors.black)
+        monitor.setTextColor(colors.white)
+        for y = 1, mh do
+            monitor.setCursorPos(1, y)
+            monitor.write(string.rep(" ", mw))
+        end
+        centerText(math.max(1, math.floor((mh - 2) / 2)), "!!! NOT-AUS !!!", colors.white, blinkOn and colors.red or colors.black)
+        centerText(math.max(1, math.floor((mh - 2) / 2) + 2), "ENTER ZUM REAKTIVIEREN", colors.white, colors.black)
+        return
+    end
     if not d.system_enabled then
         fillLine(1, colors.gray)
         centerText(1, "Schiff Tommy", colors.white, colors.gray)
@@ -671,6 +684,17 @@ function Service.setAuxEnabled(en)
     end
     return Service.data.aux_enabled
 end
+function Service.triggerEmergencyStop()
+    Service.data.emergency_stop = true
+    Service.data.enabled = false
+    Service.data.auto_enabled = false
+    test_running = false
+    stopAllOutputs()
+    setAutopilotRedstone(false)
+end
+function Service.clearEmergencyStop()
+    Service.data.emergency_stop = false
+end
 function Service.setAutoEnabled(en)
     if en and not readSystemEnabled() then return false end
     Service.data.auto_enabled = en
@@ -728,6 +752,13 @@ end
 local monitorTick = 0
 function Service.step(runStabilizer)
     if not running then return end
+    if Service.data.emergency_stop then
+        stopAllOutputs()
+        Service.data.manual_active = false
+        Service.data.aux_thrust = 0
+        updateMonitor()
+        return
+    end
     local systemEnabled = readSystemEnabled()
     Service.data.system_enabled = systemEnabled
     if not systemEnabled then

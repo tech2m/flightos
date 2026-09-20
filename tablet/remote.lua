@@ -189,7 +189,18 @@ local function drawCtrl()
         wrt(2, 5, "Waiting for signal...", colors.gray, colors.black)
         return
     end
+    if data.emergency_stop then
+        local blinkOn = math.floor(os.clock() * 4) % 2 == 0
+        term.setBackgroundColor(blinkOn and colors.red or colors.black)
+        term.setTextColor(blinkOn and colors.white or colors.red)
+        term.setCursorPos(1, math.floor(h / 2) - 1)
+        term.write(string.rep(" ", w))
+        wrt(math.max(1, math.floor((w - 16) / 2)), math.floor(h / 2), "!!! NOT-AUS !!!", blinkOn and colors.white or colors.red, blinkOn and colors.red or colors.black)
+        wrt(math.max(1, math.floor((w - 25) / 2)), math.floor(h / 2) + 2, "ENTER ZUM REAKTIVIEREN", colors.white, colors.black)
+        return
+    end
     wrt(2, 4, "Quick Controls:", colors.cyan, colors.black)
+    wrt(2, 5, " [E] NOT-AUS", colors.white, colors.red)
     wrt(2, 6, " [A] Toggle Autopilot", colors.white, colors.black)
     if data.auto_enabled then
         wrt(w - 5, 6, " ON ", colors.black, colors.lime)
@@ -386,6 +397,9 @@ local function handleCtrlEvent(event)
         elseif ch == "v" or ch == "м" then
             sendCmd({ cmd = "toggle_aux" })
             return true
+        elseif ch == "e" or ch == "у" then
+            sendCmd({ cmd = "emergency_stop" })
+            return true
         end
     end
     return false
@@ -519,6 +533,7 @@ draw()
 local refreshTimer = os.startTimer(0.5)
 while true do
     local event = {os.pullEvent()}
+    local emergencyCleared = false
     if event[1] == "modem_message" and event[3] == CHANNEL then
         local msg = event[5]
         if type(msg) == "table" and msg.type == "telemetry" then
@@ -552,6 +567,11 @@ while true do
         draw()
         refreshTimer = os.startTimer(0.5)
     end
+    if event[1] == "key" and event[2] == keys.enter and data.emergency_stop then
+        sendCmd({ cmd = "clear_emergency_stop" })
+        draw()
+        emergencyCleared = true
+    end
     if event[1] == "key" then
         local key = event[2]
         if key == keys.f1 then switchTab(1)
@@ -561,25 +581,31 @@ while true do
         elseif key == keys.f5 then switchTab(5)
         end
     end
-    if event[1] == "mouse_click" and event[4] == 1 then
+    if event[1] == "mouse_click" then
         local mx = event[3]
-        local x = 1
-        for i, name in ipairs(tabNames) do
-            local x2 = x + #name + 1
-            if mx >= x and mx <= x2 then
-                switchTab(i)
-                break
+        if activeTab == 3 and not data.emergency_stop and event[4] == 5 and mx >= 2 and mx <= 14 then
+            sendCmd({ cmd = "emergency_stop" })
+            draw()
+        end
+        if event[4] == 1 then
+            local x = 1
+            for i, name in ipairs(tabNames) do
+                local x2 = x + #name + 1
+                if mx >= x and mx <= x2 then
+                    switchTab(i)
+                    break
+                end
+                x = x2 + 1
             end
-            x = x2 + 1
         end
     end
-    if activeTab == 2 then
+    if not emergencyCleared and activeTab == 2 then
         if handleAutoEvent(event) then draw() end
-    elseif activeTab == 3 then
+    elseif not emergencyCleared and activeTab == 3 then
         if handleCtrlEvent(event) then draw() end
-    elseif activeTab == 4 then
+    elseif not emergencyCleared and activeTab == 4 then
         if handleMusicEvent(event) then draw() end
-    elseif activeTab == 5 then
+    elseif not emergencyCleared and activeTab == 5 then
         if handleUpdateEvent(event) then draw() end
     end
 end

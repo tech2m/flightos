@@ -61,6 +61,7 @@ end
 logBoot("Starting multi-thread kernel...")
 local activeTab = 1
 local tabHitboxes = {}
+local emergencyHitbox = nil
 local needsRedraw = true
 local guiRunning = true
 local contentWindow = window.create(term.current(), 1, 2, w, h - 1)
@@ -70,6 +71,22 @@ local function drawGUI(forceClear)
     if Service.data.system_enabled ~= lastSystemEnabled then
         forceClear = true
         lastSystemEnabled = Service.data.system_enabled
+    end
+    if Service.data.emergency_stop then
+        term.setBackgroundColor(colors.black)
+        term.clear()
+        local blinkOn = math.floor(os.clock() * 4) % 2 == 0
+        term.setBackgroundColor(blinkOn and colors.red or colors.black)
+        term.setTextColor(blinkOn and colors.white or colors.red)
+        term.setCursorPos(1, math.floor(h / 2) - 1)
+        term.write(string.rep(" ", w))
+        term.setCursorPos(math.max(1, math.floor((w - 18) / 2)), math.floor(h / 2))
+        term.write("!!! NOT-AUS !!!")
+        term.setCursorPos(math.max(1, math.floor((w - 25) / 2)), math.floor(h / 2) + 2)
+        term.write("ENTER ZUM REAKTIVIEREN")
+        emergencyHitbox = nil
+        needsRedraw = true
+        return
     end
     if not Service.data.system_enabled then
         term.setBackgroundColor(colors.black)
@@ -100,6 +117,11 @@ local function drawGUI(forceClear)
         contentWindow.setBackgroundColor(UI.colors.bg)
         contentWindow.setTextColor(UI.colors.text)
         contentWindow.clear()
+        emergencyHitbox = { x1 = w - 15, x2 = w, y = 1 }
+        term.setCursorPos(w - 15, 1)
+        term.setBackgroundColor(colors.red)
+        term.setTextColor(colors.white)
+        term.write(" NOT-AUS ")
     end
     local app = apps[activeTab]
     if app and app.draw then
@@ -129,12 +151,21 @@ local function guiLoop()
         end
         local event = { os.pullEvent() }
         local handled = false
+        if event[1] == "key" and event[2] == keys.enter and Service.data.emergency_stop then
+            Service.clearEmergencyStop()
+            needsRedraw = true
+            handled = true
+        elseif event[1] == "mouse_click" and event[4] == 1 and emergencyHitbox and event[3] >= emergencyHitbox.x1 and event[3] <= emergencyHitbox.x2 and event[2] == emergencyHitbox.y then
+            Service.triggerEmergencyStop()
+            handled = true
+            needsRedraw = true
+        end
         if not Service.data.system_enabled then
             if event[1] == "timer" and event[2] == refreshTimer then
                 needsRedraw = true
                 refreshTimer = os.startTimer(0.25)
             end
-        elseif event[1] == "mouse_click" and event[4] == 1 then
+        elseif not handled and event[1] == "mouse_click" and event[4] == 1 then
             local mx = event[3]
             for i, hb in pairs(tabHitboxes) do
                 if mx >= hb.x1 and mx <= hb.x2 then

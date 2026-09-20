@@ -34,6 +34,7 @@ local function buildTelemetry()
             aux_left_ready = d.aux_left_ready,
             aux_right_ready = d.aux_right_ready,
             aux_thrust = d.aux_thrust,
+            emergency_stop = d.emergency_stop,
             dist = d.dist,
             progress = d.progress,
             fl = d.fl, fr = d.fr,
@@ -90,6 +91,13 @@ local function buildTelemetry()
 end
 local function handleCommand(msg)
     if type(msg) ~= "table" or msg.type ~= "cmd" then return end
+    if msg.cmd == "emergency_stop" then
+        service.triggerEmergencyStop()
+        return
+    elseif msg.cmd == "clear_emergency_stop" then
+        service.clearEmergencyStop()
+        return
+    end
     if service.data.system_enabled == false then return end
     if msg.cmd == "set_target" then
         cfg.target_x = tonumber(msg.x) or cfg.target_x
