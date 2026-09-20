@@ -190,7 +190,12 @@ local function applyManualControls()
     local propeller = normalizedThrottle(manual_propeller)
     local thrust = normalizedThrottle(manual_thrust)
     local steering = normalizedSteering(manual_steering)
-    if not propeller and not thrust and not steering then return false end
+    if not propeller and not thrust and not steering then
+        stopMotors()
+        stopThrustMotors()
+        if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
+        return false
+    end
     local thrustSpeed = (thrust or 0) * (cfg.manual_thrust_max or 128)
     local thrustSteer = (steering or 0) * (cfg.manual_thrust_steer_max or cfg.manual_thrust_max or 128)
     if motor_speed_left and motor_speed_right then
@@ -203,13 +208,17 @@ local function applyManualControls()
     if motor_steer then
         pcall(motor_steer.setTargetSpeed, (steering or 0) * (cfg.manual_steering_max or 128))
     end
-    if propeller then
-        local speed = propeller * (cfg.manual_propeller_max or 128)
-        if cfg.manual_propeller_invert then
-            speed = -speed
-        end
-        setMotorSpeeds(speed, speed, speed, speed, cfg.manual_propeller_max or 1024)
+    local propellerSpeed = (propeller or 0) * (cfg.manual_propeller_max or 128)
+    if cfg.manual_propeller_invert then
+        propellerSpeed = -propellerSpeed
     end
+    setMotorSpeeds(
+        propellerSpeed,
+        propellerSpeed,
+        propellerSpeed,
+        propellerSpeed,
+        cfg.manual_propeller_max or 1024
+    )
     Service.data.manual_active = true
     Service.data.manual_propeller = propeller or 0
     Service.data.manual_thrust = thrust or 0
