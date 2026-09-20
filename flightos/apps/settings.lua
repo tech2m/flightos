@@ -20,6 +20,7 @@ local fields = {
     { key = "aux_propeller_left_id", label = "Aux Left ID", is_string = true },
     { key = "aux_propeller_right_id", label = "Aux Right ID", is_string = true },
     { key = "system_enable_side", label = "Enable Redstone Side", is_string = true },
+    { key = "emergency_stop_side", label = "Emergency Stop Side", is_string = true },
     { key = "manual_enable_side", label = "Manual Redstone Side", is_string = true },
     { key = "manual_propeller_id", label = "Prop Lever ID", is_string = true },
     { key = "manual_thrust_id", label = "Thrust Lever ID", is_string = true },

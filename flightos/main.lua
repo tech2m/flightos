@@ -75,11 +75,13 @@ local function drawGUI(forceClear)
     if Service.data.emergency_stop then
         term.setBackgroundColor(colors.black)
         term.clear()
-        local blinkOn = math.floor(os.clock() * 4) % 2 == 0
+        local blinkOn = math.floor(os.clock() * 2) % 2 == 0
         term.setBackgroundColor(blinkOn and colors.red or colors.black)
         term.setTextColor(blinkOn and colors.white or colors.red)
-        term.setCursorPos(1, math.floor(h / 2) - 1)
-        term.write(string.rep(" ", w))
+        for y = 1, h do
+            term.setCursorPos(1, y)
+            term.write(string.rep(" ", w))
+        end
         term.setCursorPos(math.max(1, math.floor((w - 18) / 2)), math.floor(h / 2))
         term.write("!!! NOT-AUS !!!")
         term.setCursorPos(math.max(1, math.floor((w - 25) / 2)), math.floor(h / 2) + 2)

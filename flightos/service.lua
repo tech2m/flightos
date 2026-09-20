@@ -11,6 +11,7 @@ local tick = 0
 local lastTime = 0
 local logFile = nil
 local lastConfigSaveTime = os.clock()
+local emergencyInputPrevious = false
 Service.data = {
     roll = 0, pitch = 0,
     rollOut = 0, pitchOut = 0,
@@ -108,6 +109,15 @@ local function readSystemEnabled()
     local ok, powered = pcall(redstone.getInput, side)
     if not ok then return false end
     if cfg and cfg.system_enable_active_high == false then
+        return not powered
+    end
+    return powered
+end
+local function readEmergencyInput()
+    local side = cfg and cfg.emergency_stop_side or "front"
+    local ok, powered = pcall(redstone.getInput, side)
+    if not ok then return false end
+    if cfg and cfg.emergency_stop_active_high == false then
         return not powered
     end
     return powered
@@ -319,7 +329,7 @@ local function updateMonitor()
     monitor.setBackgroundColor(colors.black)
     monitor.clear()
     if d.emergency_stop then
-        local blinkOn = math.floor(os.clock() * 4) % 2 == 0
+        local blinkOn = math.floor(os.clock() * 8) % 2 == 0
         monitor.setBackgroundColor(blinkOn and colors.red or colors.black)
         monitor.setTextColor(colors.white)
         for y = 1, mh do
@@ -327,7 +337,6 @@ local function updateMonitor()
             monitor.write(string.rep(" ", mw))
         end
         centerText(math.max(1, math.floor((mh - 2) / 2)), "!!! NOT-AUS !!!", colors.white, blinkOn and colors.red or colors.black)
-        centerText(math.max(1, math.floor((mh - 2) / 2) + 2), "ENTER ZUM REAKTIVIEREN", colors.white, colors.black)
         return
     end
     if not d.system_enabled then
@@ -752,6 +761,11 @@ end
 local monitorTick = 0
 function Service.step(runStabilizer)
     if not running then return end
+    local emergencyInput = readEmergencyInput()
+    if emergencyInput and not emergencyInputPrevious then
+        Service.triggerEmergencyStop()
+    end
+    emergencyInputPrevious = emergencyInput
     if Service.data.emergency_stop then
         stopAllOutputs()
         Service.data.manual_active = false
