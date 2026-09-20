@@ -155,6 +155,7 @@ local function guiLoop()
         local handled = false
         if event[1] == "key" and event[2] == keys.enter and Service.data.emergency_stop then
             Service.clearEmergencyStop()
+            drawGUI(true)
             needsRedraw = true
             handled = true
         elseif event[1] == "mouse_click" and event[4] == 1 and emergencyHitbox and event[3] >= emergencyHitbox.x1 and event[3] <= emergencyHitbox.x2 and event[2] == emergencyHitbox.y then
