@@ -31,6 +31,8 @@ local function buildTelemetry()
             manual_thrust = d.manual_thrust,
             manual_steering = d.manual_steering,
             aux_enabled = d.aux_enabled,
+            aux_left_ready = d.aux_left_ready,
+            aux_right_ready = d.aux_right_ready,
             dist = d.dist,
             progress = d.progress,
             fl = d.fl, fr = d.fr,

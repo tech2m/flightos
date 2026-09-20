@@ -30,6 +30,8 @@ Service.data = {
     manual_thrust = 0,
     manual_steering = 0,
     aux_enabled = false,
+    aux_left_ready = false,
+    aux_right_ready = false,
     x = nil, y = nil, z = nil,
     dist = nil, progress = 0,
     test_msg = nil,
@@ -84,7 +86,7 @@ local function setAuxPropellerSpeed(speed)
     if not aux_propeller_left and not aux_propeller_right then return end
     local maxSpeed = cfg.manual_thrust_max or 512
     speed = clamp(speed, -maxSpeed, maxSpeed)
-    pcall(function()
+    local ok = pcall(function()
         parallel.waitForAll(
             function()
                 if aux_propeller_left then aux_propeller_left.setTargetSpeed(speed) end
@@ -94,6 +96,10 @@ local function setAuxPropellerSpeed(speed)
             end
         )
     end)
+    if not ok then
+        Service.data.aux_left_ready = false
+        Service.data.aux_right_ready = false
+    end
 end
 local function stopAuxPropellers()
     setAuxPropellerSpeed(0)
@@ -570,8 +576,10 @@ function Service.applyConfig(config)
         motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
         motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
         motor_steer = peripheral.wrap(cfg.motor_steer_id)
-        aux_propeller_left = peripheral.wrap(cfg.aux_propeller_left_id)
-        aux_propeller_right = peripheral.wrap(cfg.aux_propeller_right_id)
+        aux_propeller_left = wrapConfigured(cfg.aux_propeller_left_id, "rotation_speed_controller", 1)
+        aux_propeller_right = wrapConfigured(cfg.aux_propeller_right_id, "rotation_speed_controller", 2)
+        Service.data.aux_left_ready = aux_propeller_left ~= nil
+        Service.data.aux_right_ready = aux_propeller_right ~= nil
         manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
         manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
         manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
@@ -588,8 +596,8 @@ function Service.init(config)
     motor_speed_left = peripheral.wrap(cfg.motor_speed_left_id or cfg.motor_speed_id)
     motor_speed_right = peripheral.wrap(cfg.motor_speed_right_id)
     motor_steer = peripheral.wrap(cfg.motor_steer_id)
-    aux_propeller_left = peripheral.wrap(cfg.aux_propeller_left_id)
-    aux_propeller_right = peripheral.wrap(cfg.aux_propeller_right_id)
+    aux_propeller_left = wrapConfigured(cfg.aux_propeller_left_id, "rotation_speed_controller", 1)
+    aux_propeller_right = wrapConfigured(cfg.aux_propeller_right_id, "rotation_speed_controller", 2)
     manual_propeller = wrapConfigured(cfg.manual_propeller_id, "throttle_lever", 1)
     manual_thrust = wrapConfigured(cfg.manual_thrust_id, "throttle_lever", 2)
     manual_steering = wrapConfigured(cfg.manual_steering_id, "steering_wheel")
@@ -603,6 +611,8 @@ function Service.init(config)
     rollPID  = PID.new(cfg.roll_kp, cfg.roll_ki, cfg.roll_kd)
     pitchPID = PID.new(cfg.pitch_kp, cfg.pitch_ki, cfg.pitch_kd)
     Service.applyConfig(cfg)
+    Service.data.aux_left_ready = aux_propeller_left ~= nil
+    Service.data.aux_right_ready = aux_propeller_right ~= nil
     if monitor then
         monitor.setTextScale(0.5)
         monitor.clear()

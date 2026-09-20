@@ -228,8 +228,8 @@ local function drawCtrl()
     else
         wrt(w - 5, 16, " OFF", colors.white, colors.red)
     end
-    wrt(2, 17, "Remote v" .. VERSION, colors.gray, colors.black)
-    wrt(2, 18, "Channel: " .. CHANNEL, colors.gray, colors.black)
+    wrt(2, 17, string.format(" Aux HW: L %s R %s", data.aux_left_ready and "OK" or "--", data.aux_right_ready and "OK" or "--"), colors.gray, colors.black)
+    wrt(2, 18, "Remote v" .. VERSION, colors.gray, colors.black)
 end
 local function drawUpdate()
     clearContent()
