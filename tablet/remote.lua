@@ -464,6 +464,10 @@ local function handleMusicEvent(event)
         end
     elseif event[1] == "char" then
         local ch = event[2]:lower()
+        if musicView == "now" and (ch == "s" or ch == "ы") then
+            musicView = "search"
+            return true
+        end
         if musicView == "search" and music.search_results and music.search_results[musicSelectedResult] then
             if ch == "1" then
                 sendCmd({ cmd = "music", action = "result", mode = "play_now", index = musicSelectedResult })
