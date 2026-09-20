@@ -141,15 +141,15 @@ local function normalizedThrottle(control)
             local ok, value = pcall(control[method])
             if ok and type(value) == "number" then
                 if method == "getPercent" then
-                    return clamp((value - 50) / 50, -1, 1)
-                elseif value < 0 and math.abs(value) <= 1 then
-                    return clamp(value, -1, 1)
-                elseif value <= 1 then
-                    return clamp(value * 2 - 1, -1, 1)
+                    return clamp(value / 100, 0, 1)
+                elseif value >= 0 and value <= 1 then
+                    return value
                 elseif value <= 15 then
-                    return clamp((value - 7.5) / 7.5, -1, 1)
+                    return clamp(value / 15, 0, 1)
+                elseif value <= 100 then
+                    return clamp(value / 100, 0, 1)
                 else
-                    return clamp((value - 50) / 50, -1, 1)
+                    return clamp(value / 1024, 0, 1)
                 end
             end
         end
