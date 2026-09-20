@@ -396,9 +396,6 @@ local function handleCtrlEvent(event)
         elseif ch == "v" or ch == "м" then
             sendCmd({ cmd = "toggle_aux" })
             return true
-        elseif ch == "e" or ch == "у" then
-            sendCmd({ cmd = "emergency_stop" })
-            return true
         end
     end
     return false
@@ -533,6 +530,7 @@ local refreshTimer = os.startTimer(0.5)
 while true do
     local event = {os.pullEvent()}
     local emergencyCleared = false
+    local emergencyTriggered = false
     if event[1] == "modem_message" and event[3] == CHANNEL then
         local msg = event[5]
         if type(msg) == "table" and msg.type == "telemetry" then
@@ -571,6 +569,13 @@ while true do
         draw()
         emergencyCleared = true
     end
+    if event[1] == "char" then
+        local ch = event[2]:lower()
+        if ch == "e" or ch == "у" then
+            sendCmd({ cmd = "emergency_stop" })
+            emergencyTriggered = true
+        end
+    end
     if event[1] == "key" then
         local key = event[2]
         if key == keys.f1 then switchTab(1)
@@ -594,13 +599,13 @@ while true do
             end
         end
     end
-    if not emergencyCleared and activeTab == 2 then
+    if not emergencyCleared and not emergencyTriggered and activeTab == 2 then
         if handleAutoEvent(event) then draw() end
-    elseif not emergencyCleared and activeTab == 3 then
+    elseif not emergencyCleared and not emergencyTriggered and activeTab == 3 then
         if handleCtrlEvent(event) then draw() end
-    elseif not emergencyCleared and activeTab == 4 then
+    elseif not emergencyCleared and not emergencyTriggered and activeTab == 4 then
         if handleMusicEvent(event) then draw() end
-    elseif not emergencyCleared and activeTab == 5 then
+    elseif not emergencyCleared and not emergencyTriggered and activeTab == 5 then
         if handleUpdateEvent(event) then draw() end
     end
 end
