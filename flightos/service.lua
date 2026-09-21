@@ -255,7 +255,6 @@ local function applyManualControls()
             cfg.manual_thrust_max or 512
         )
     end
-    setAuxPropellerSpeed(thrustSpeed)
     if motor_steer then
         pcall(motor_steer.setTargetSpeed, (steering or 0) * (cfg.manual_steering_max or 128))
     end
@@ -263,6 +262,7 @@ local function applyManualControls()
     if cfg.manual_propeller_invert then
         propellerSpeed = -propellerSpeed
     end
+    setAuxPropellerSpeed(propellerSpeed)
     setMotorSpeeds(
         propellerSpeed,
         propellerSpeed,
