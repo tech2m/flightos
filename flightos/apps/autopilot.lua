@@ -15,6 +15,10 @@ local fields = {
     { key = "auto_steer_max", label = "Max Steer",  is_string = true },
     { key = "auto_steer_kp",  label = "Steer Kp",   is_string = true },
     { key = "auto_steer_kd",  label = "Steer Kd",   is_string = true },
+    { key = "auto_steer_coast_factor", label = "Hold Power", is_string = true },
+    { key = "auto_steer_hold_rate",    label = "Hold Rate", is_string = true },
+    { key = "auto_steer_hold_error",  label = "Hold Err",  is_string = true },
+    { key = "auto_steer_hold_max",    label = "Hold Max",  is_string = true },
 }
 local selectedField = 1
 local scrollOffset = 0

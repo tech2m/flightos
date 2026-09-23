@@ -31,14 +31,18 @@ local defaults = {
     steer_invert = true,
     rs_relay_id = "none",
     rs_side = "top",
-    system_enable_side = "back",
+    system_enable_side = "left",
     system_enable_active_high = true,
-    emergency_stop_side = "front",
+    emergency_stop_side = "top",
     emergency_stop_active_high = true,
     auto_speed_max = 256,
     auto_steer_max = 256,
     auto_steer_kp = 80,
     auto_steer_kd = 15,
+    auto_steer_coast_factor = 0.6,
+    auto_steer_hold_rate = 0.04,
+    auto_steer_hold_error = 0.05,
+    auto_steer_hold_max = 5.0,
     manual_enabled = true,
     manual_enable_side = "right",
     manual_enable_active_high = true,
@@ -74,6 +78,11 @@ function Config.load()
                 if loaded.motor_max == 128 then cfg.motor_max = 256 end
                 if loaded.auto_speed_max == 128 then cfg.auto_speed_max = 256 end
                 if loaded.auto_steer_max == 128 then cfg.auto_steer_max = 256 end
+                -- Migration: Gegenruder-Parameter nachreichen (alte config.dat)
+                if cfg.auto_steer_coast_factor == nil then cfg.auto_steer_coast_factor = 0.6 end
+                if cfg.auto_steer_hold_rate == nil then cfg.auto_steer_hold_rate = 0.04 end
+                if cfg.auto_steer_hold_error == nil then cfg.auto_steer_hold_error = 0.05 end
+                if cfg.auto_steer_hold_max == nil then cfg.auto_steer_hold_max = 5.0 end
                 if loaded.manual_propeller_max == 128 or loaded.manual_propeller_max == 256 then cfg.manual_propeller_max = 1024 end
                 if loaded.manual_thrust_max == 128 or loaded.manual_thrust_max == 256 then cfg.manual_thrust_max = 512 end
                 if loaded.manual_steering_max == 128 then cfg.manual_steering_max = 256 end

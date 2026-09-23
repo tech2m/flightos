@@ -344,7 +344,7 @@ local function updateMonitor()
             monitor.setCursorPos(1, y)
             monitor.write(string.rep(" ", mw))
         end
-        centerText(math.max(1, math.floor((mh - 1) / 2)), "!!! NOT-AUS !!!", colors.white, blinkOn and colors.red or colors.black)
+        centerText(math.max(1, math.floor((mh - 1) / 2)), "NOT-STOPP", colors.white, blinkOn and colors.red or colors.black)
         return
     end
     if not d.system_enabled then
@@ -662,6 +662,11 @@ local last_heading_x, last_heading_z
 local smooth_vx, smooth_vz = 0, 0
 local last_set_speed, last_set_steer = 0, 0
 local current_heading = 0
+local turn_rate = 0            -- gemessene Drehrate des Schiffs (rad/s)
+local last_heading_update_time = nil
+local hold_active = false      -- true waehrend der Gegenruder-Phase
+local hold_release_err = 0     -- Kursfehler im Moment der Ruder-Freigabe
+local hold_start_time = nil
 local is_moving = false
 local start_dist
 local prev_err = 0
@@ -726,6 +731,10 @@ function Service.setAutoEnabled(en)
         prev_err = 0
         auto_start_time = nil
         steer_tick_counter = 0
+        turn_rate = 0
+        last_heading_update_time = nil
+        hold_active = false
+        hold_start_time = nil
         pcall(function()
             stopThrustMotors()
             if motor_steer then motor_steer.setTargetSpeed(0) end
@@ -932,6 +941,8 @@ function Service.step(runStabilizer)
             end
             d.dist = nil
             d.progress = 0
+            hold_active = false
+            hold_start_time = nil
             return
         end
         if cx and cz then
@@ -966,7 +977,18 @@ function Service.step(runStabilizer)
                     if move_dist > 0.5 then
                         smooth_vx = smooth_vx * 0.7 + dx_move * 0.3
                         smooth_vz = smooth_vz * 0.7 + dz_move * 0.3
-                        current_heading = math.atan2(smooth_vx, smooth_vz)
+                        local new_heading = math.atan2(smooth_vx, smooth_vz)
+                        local now_t = os.clock()
+                        if last_heading_update_time then
+                            local hdt = now_t - last_heading_update_time
+                            if hdt > 0.05 then
+                                local hdiff = new_heading - current_heading
+                                hdiff = math.atan2(math.sin(hdiff), math.cos(hdiff))
+                                turn_rate = turn_rate * 0.6 + (hdiff / hdt) * 0.4
+                            end
+                        end
+                        last_heading_update_time = now_t
+                        current_heading = new_heading
                         is_moving = true
                         last_heading_x = cx
                         last_heading_z = cz
@@ -992,31 +1014,71 @@ function Service.step(runStabilizer)
                 end
                 if cfg.speed_invert then base_speed = -base_speed end
                 local speed = clamp(base_speed, -max_speed, max_speed)
-                local steer_blend = math.min(1.0, math.max(0, elapsed / 3.0))
-                local steer_speed = 0
-                if is_moving and steer_blend > 0 and dist > reverse_dist then
-                    local target_h = math.atan2(dx, dz)
-                    local err = target_h - current_heading
-                    err = math.atan2(math.sin(err), math.cos(err))
-                    local derr = err - prev_err
-                    derr = math.atan2(math.sin(derr), math.cos(derr))
-                    local deriv = derr / dt
-                    prev_err = err
-                    local abs_err = math.abs(err)
-                    local kp_factor = (cfg.auto_steer_kp or 80.0) / 80.0
-                    local kd_factor = (cfg.auto_steer_kd or 15.0) / 15.0
-                    local proportional = (abs_err / 0.20) * kp_factor
-                    local damping = math.abs(deriv) * kd_factor * 0.02
-                    local turn_strength = clamp((proportional - damping) * steer_blend, 0, 1)
-                    if abs_err >= 0.03 then
-                        steer_speed = (err > 0 and 1 or -1) * (cfg.auto_steer_max or 128) * turn_strength
-                        if cfg.steer_invert then
-                            steer_speed = -steer_speed
+                    local steer_blend = math.min(1.0, math.max(0, elapsed / 3.0))
+                    local steer_speed = 0
+                    if is_moving and steer_blend > 0 and dist > reverse_dist then
+                        local target_h = math.atan2(dx, dz)
+                        local err = target_h - current_heading
+                        err = math.atan2(math.sin(err), math.cos(err))
+                        local derr = err - prev_err
+                        derr = math.atan2(math.sin(derr), math.cos(derr))
+                        local deriv = derr / dt
+                        prev_err = err
+                        local abs_err = math.abs(err)
+                        local kp_factor = (cfg.auto_steer_kp or 80.0) / 80.0
+                        local kd_factor = (cfg.auto_steer_kd or 15.0) / 15.0
+                        local proportional = (abs_err / 0.20) * kp_factor
+                        local damping = math.abs(deriv) * kd_factor * 0.02
+                        local turn_strength = clamp((proportional - damping) * steer_blend, 0, 1)
+                        -- Aktuelle Drehrate verwenden; bei alten GPS-Daten auf 0 fallen.
+                        local rate_now = 0
+                        if last_heading_update_time and (os.clock() - last_heading_update_time) < 1.0 then
+                            rate_now = turn_rate
                         end
+                        local coast_factor = cfg.auto_steer_coast_factor or 0.6
+                        local hold_error = cfg.auto_steer_hold_error or 0.05
+                        local hold_rate = cfg.auto_steer_hold_rate or 0.04
+                        local hold_timeout = cfg.auto_steer_hold_max or 5.0
+                        if hold_active then
+                            -- Gegenruder-Phase: Das Schiff dreht wegen seiner Tragheit noch
+                            -- nach. Aktiv dagegen steuern, bis die Drehung abgeklungen ist.
+                            steer_speed = (rate_now > 0 and -1 or 1) * (cfg.auto_steer_max or 128) * coast_factor
+                            if cfg.steer_invert then
+                                steer_speed = -steer_speed
+                            end
+                            local timedOut = hold_start_time and (os.clock() - hold_start_time) > hold_timeout
+                            if abs_err < 0.01 or abs_err > hold_release_err + hold_error
+                                    or math.abs(rate_now) < hold_rate or timedOut then
+                                hold_active = false
+                                hold_start_time = nil
+                                steer_speed = 0
+                            end
+                        elseif abs_err >= 0.03 then
+                            -- Normale Lenkphase
+                            steer_speed = (err > 0 and 1 or -1) * (cfg.auto_steer_max or 128) * turn_strength
+                            if cfg.steer_invert then
+                                steer_speed = -steer_speed
+                            end
+                        else
+                            -- Ruder freigegeben: Beobachten, ob das Schiff noch nachdreht.
+                            -- Falls ja -> Gegenruder-Phase starten.
+                            hold_release_err = abs_err
+                            hold_start_time = os.clock()
+                            if math.abs(rate_now) >= hold_rate then
+                                hold_active = true
+                                steer_speed = (rate_now > 0 and -1 or 1) * (cfg.auto_steer_max or 128) * coast_factor
+                                if cfg.steer_invert then
+                                    steer_speed = -steer_speed
+                                end
+                            else
+                                hold_start_time = nil
+                            end
+                        end
+                    else
+                        steer_tick_counter = 0
+                        hold_active = false
+                        hold_start_time = nil
                     end
-                else
-                    steer_tick_counter = 0
-                end
                 local thrustSteer = steer_speed * (cfg.auto_thrust_steer_mix or 1.0)
                 setThrustMotorSpeeds(
                     speed - thrustSteer,
@@ -1037,6 +1099,11 @@ function Service.step(runStabilizer)
                 start_dist = nil
                 auto_start_time = nil
                 is_moving = false
+                last_heading_x, last_heading_z = nil, nil
+                turn_rate = 0
+                last_heading_update_time = nil
+                hold_active = false
+                hold_start_time = nil
                 setAutopilotRedstone(false)
             end
         end

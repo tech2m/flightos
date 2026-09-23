@@ -82,7 +82,7 @@ local function drawGUI(forceClear)
             term.write(string.rep(" ", w))
         end
         term.setCursorPos(math.max(1, math.floor((w - 18) / 2)), math.floor(h / 2))
-        term.write("!!! NOT-AUS !!!")
+        term.write("NOT-STOPP")
         term.setCursorPos(math.max(1, math.floor((w - 25) / 2)), math.floor(h / 2) + 2)
         term.write("ENTER ZUM REAKTIVIEREN")
         needsRedraw = true

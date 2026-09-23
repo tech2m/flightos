@@ -84,6 +84,10 @@ local function buildTelemetry()
             auto_steer_max = cfg.auto_steer_max,
             auto_steer_kp = cfg.auto_steer_kp,
             auto_steer_kd = cfg.auto_steer_kd,
+            auto_steer_coast_factor = cfg.auto_steer_coast_factor,
+            auto_steer_hold_rate = cfg.auto_steer_hold_rate,
+            auto_steer_hold_error = cfg.auto_steer_hold_error,
+            auto_steer_hold_max = cfg.auto_steer_hold_max,
             speed_invert = cfg.speed_invert,
             steer_invert = cfg.steer_invert,
         }
@@ -118,7 +122,9 @@ local function handleCommand(msg)
         local key = msg.key
         local val = msg.value
         if key and val ~= nil then
-            if key == "auto_speed_max" or key == "auto_steer_max" or key == "auto_steer_kp" or key == "auto_steer_kd" then
+            if key == "auto_speed_max" or key == "auto_steer_max" or key == "auto_steer_kp" or key == "auto_steer_kd"
+                    or key == "auto_steer_coast_factor" or key == "auto_steer_hold_rate"
+                    or key == "auto_steer_hold_error" or key == "auto_steer_hold_max" then
                 cfg[key] = tonumber(val) or cfg[key]
             elseif key == "speed_invert" or key == "steer_invert" then
                 if type(val) == "string" then

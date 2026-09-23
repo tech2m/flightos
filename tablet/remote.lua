@@ -31,6 +31,10 @@ local editFields = {
     { key = "auto_steer_max", label = "Max Steer" },
     { key = "auto_steer_kp",  label = "Steer Kp" },
     { key = "auto_steer_kd",  label = "Steer Kd" },
+    { key = "auto_steer_coast_factor", label = "Hold Power" },
+    { key = "auto_steer_hold_rate",    label = "Hold Rate" },
+    { key = "auto_steer_hold_error",  label = "Hold Err" },
+    { key = "auto_steer_hold_max",    label = "Hold Max" },
 }
 local selectedField = 1
 local editScrollOffset = 0

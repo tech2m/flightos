@@ -96,6 +96,15 @@ If the autopilot flies crookedly, makes wide turns, or fails to fly in a straigh
   * *Purpose*: Slows down the steering rate as the ship's heading aligns with the target vector, preventing course overshooting.
   * *Tuning*: Increase Steer Kd if the ship flies past the straight line vector when completing a turn.
 
+### 3. Counter Rudder / Turn Inertia (Hold Parameters)
+
+Heavy ships keep rotating for a while after the rudder is set to zero (turn inertia). The autopilot detects this "coasting" and actively steers **against** the residual rotation until the turn dies out (counter rudder, like real ship autopilots):
+
+* **Hold Power** (`auto_steer_coast_factor`): Strength of the counter rudder, as a fraction of Max Steer. Default `0.6`. Increase if the ship needs longer to stop rotating; decrease if counter steering is too harsh.
+* **Hold Rate** (`auto_steer_hold_rate`): Rotation rate (rad/s) above which the counter-rudder phase triggers after rudder release. Default `0.04`. Raise it if counter rudder kicks in too eagerly; lower it if the ship still drifts after release.
+* **Hold Err** (`auto_steer_hold_error`): Safety margin in radians. If the heading error grows by more than this during the counter-rudder phase, normal steering resumes immediately. Default `0.05`.
+* **Hold Max** (`auto_steer_hold_max`): Maximum duration of the counter-rudder phase in seconds before it is abandoned. Default `5.0`.
+
 ---
 
 ## Troubleshooting: Motor Inversion Detection
