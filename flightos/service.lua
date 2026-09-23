@@ -221,14 +221,19 @@ local function readManualSwitch()
 end
 local function applyManualControls()
     if not cfg.manual_enabled or not readManualSwitch() then
+        -- WICHTIG: Nicht mehr jede Runde auf 0 zwingen. Solange der Autopilot
+        -- laeuft, duerfen Schubmotoren/Heckruder nicht genullt werden, sonst
+        -- kaempfen zwei Systeme gegeneinander (Zappeln).
         Service.data.aux_thrust = 0
-        stopThrustMotors()
-        if Service.data.aux_enabled then
-            setAuxPropellerSpeed(auxOutputSpeed())
-        else
-            stopAuxPropellers()
+        if not Service.data.auto_enabled then
+            stopThrustMotors()
+            if Service.data.aux_enabled then
+                setAuxPropellerSpeed(auxOutputSpeed())
+            else
+                stopAuxPropellers()
+            end
+            if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         end
-        if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         return false
     end
     local propeller = normalizedThrottle(manual_propeller)
@@ -237,13 +242,15 @@ local function applyManualControls()
     if not propeller and not thrust and not steering then
         Service.data.aux_thrust = 0
         stopMotors()
-        stopThrustMotors()
-        if Service.data.aux_enabled then
-            setAuxPropellerSpeed(auxOutputSpeed())
-        else
-            stopAuxPropellers()
+        if not Service.data.auto_enabled then
+            stopThrustMotors()
+            if Service.data.aux_enabled then
+                setAuxPropellerSpeed(auxOutputSpeed())
+            else
+                stopAuxPropellers()
+            end
+            if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         end
-        if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
         return false
     end
     local thrustSpeed = (thrust or 0) * (cfg.manual_thrust_max or 128)
@@ -843,7 +850,13 @@ function Service.step(runStabilizer)
         setAutopilotRedstone(false)
     end
     local ok, angles = pcall(function() return gimbal.getAngles() end)
-    if not ok or not angles then return end
+    if not ok or not angles then
+        -- Gimbal-Ausfall: Wenn sonst niemand steuert, sicher anhalten.
+        if not manualActive and not d.auto_enabled and not test_running then
+            stopAllOutputs()
+        end
+        return
+    end
     local rollAngle  = angles[1]
     local pitchAngle = angles[2]
     local rollOut, rP, rI, rD = 0, 0, 0, 0
@@ -910,6 +923,17 @@ function Service.step(runStabilizer)
         d.manual_active = true
     elseif d.auto_enabled and motor_speed_left and motor_speed_right and motor_steer then
         local cx, cy, cz = d.x, d.y, d.z
+        if not cx or not cz then
+            -- Kein GPS-Fix: Wenn sonst niemand steuert, sicher anhalten,
+            -- statt die letzten Sollwerte weiterlaufen zu lassen.
+            if not test_running then
+                stopThrustMotors()
+                if motor_steer then pcall(motor_steer.setTargetSpeed, 0) end
+            end
+            d.dist = nil
+            d.progress = 0
+            return
+        end
         if cx and cz then
             local tx = cfg.target_x or 0
             local tz = cfg.target_z or 0
@@ -1012,6 +1036,7 @@ function Service.step(runStabilizer)
                 d.progress = 100
                 start_dist = nil
                 auto_start_time = nil
+                is_moving = false
                 setAutopilotRedstone(false)
             end
         end
@@ -1058,12 +1083,20 @@ function Service.getPitchPID()
     return pitchPID
 end
 function Service.gpsLoop()
+    local lastFix = os.clock()
     while running do
         local x, y, z = gps.locate(0.5)
         if x then
             Service.data.x = x
             Service.data.y = y
             Service.data.z = z
+            lastFix = os.clock()
+        elseif os.clock() - lastFix > 3.0 then
+            -- Fix zu alt: Position verwerfen, damit der Autopilot
+            -- sicher anh&auml;lt statt mit alten Koordinaten weiterzufliegen.
+            Service.data.x = nil
+            Service.data.y = nil
+            Service.data.z = nil
         end
         sleep(0.5)
     end
