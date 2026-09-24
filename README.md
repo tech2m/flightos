@@ -143,7 +143,7 @@ The rudder bearing assembly automatically centers itself. Autopilot commands are
 ### Throttle & Propulsion
 ![Speed Control Mechanism](flightos/screenshots/speed_control_mechanism.png)
 ![Speed Control Mechanism 2](flightos/screenshots/speed_control_mechanism_2.png)
-The left and right primary propulsion drives are regulated through variable mechanical speed controllers. The autopilot combines equal thrust for cruise and reverse braking with differential thrust for turns, while also pulsing the rear steering motor.
+The left and right primary propulsion drives are regulated through variable mechanical speed controllers. The autopilot combines equal thrust for cruise and smooth deceleration with differential thrust for turns, while also pulsing the rear steering motor.
 
 ### System Cabling
 ![Network Cables](flightos/screenshots/network_cables.png)

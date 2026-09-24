@@ -669,7 +669,6 @@ local hold_release_err = 0     -- Kursfehler im Moment der Ruder-Freigabe
 local hold_start_time = nil
 local is_moving = false
 local start_dist
-local prev_err = 0
 local auto_start_time = nil
 local steer_tick_counter = 0
 local test_running = false
@@ -728,7 +727,6 @@ function Service.setAutoEnabled(en)
         last_set_speed, last_set_steer = 0, 0
         is_moving = false
         start_dist = nil
-        prev_err = 0
         auto_start_time = nil
         steer_tick_counter = 0
         turn_rate = 0
@@ -1000,14 +998,14 @@ function Service.step(runStabilizer)
                 local elapsed = os.clock() - auto_start_time
                 local accel_ramp = math.min(1.0, elapsed / 5.0)
                 local cruise_speed = max_speed * accel_ramp
+                -- Bremszone: nur noch vorwaerts ausrollen. Das fruehere Rueckwaerts-
+                -- bremsen unter 15 m hat den aus der Bewegungsrichtung geschaetzten
+                -- Kurs um 180 Grad gekippt -> Vollruder -> Endloses Kreisen.
                 local brake_dist = 100
-                local reverse_dist = 15
+                local steer_gate = 5
                 local base_speed
-                if dist < reverse_dist then
-                    local reverse_factor = (reverse_dist - dist) / reverse_dist
-                    base_speed = -max_speed * 0.5 * reverse_factor
-                elseif dist < brake_dist then
-                    local decel_factor = (dist - reverse_dist) / (brake_dist - reverse_dist)
+                if dist < brake_dist then
+                    local decel_factor = dist / brake_dist
                     base_speed = cruise_speed * math.max(0.15, decel_factor)
                 else
                     base_speed = cruise_speed
@@ -1015,69 +1013,63 @@ function Service.step(runStabilizer)
                 if cfg.speed_invert then base_speed = -base_speed end
                 local speed = clamp(base_speed, -max_speed, max_speed)
                     local steer_blend = math.min(1.0, math.max(0, elapsed / 3.0))
-                    local steer_speed = 0
-                    if is_moving and steer_blend > 0 and dist > reverse_dist then
+                    local steer_cmd = 0
+                    if is_moving and steer_blend > 0 and dist > steer_gate then
                         local target_h = math.atan2(dx, dz)
                         local err = target_h - current_heading
                         err = math.atan2(math.sin(err), math.cos(err))
-                        local derr = err - prev_err
-                        derr = math.atan2(math.sin(derr), math.cos(derr))
-                        local deriv = derr / dt
-                        prev_err = err
                         local abs_err = math.abs(err)
-                        local kp_factor = (cfg.auto_steer_kp or 80.0) / 80.0
-                        local kd_factor = (cfg.auto_steer_kd or 15.0) / 15.0
-                        local proportional = (abs_err / 0.20) * kp_factor
-                        local damping = math.abs(deriv) * kd_factor * 0.02
-                        local turn_strength = clamp((proportional - damping) * steer_blend, 0, 1)
                         -- Aktuelle Drehrate verwenden; bei alten GPS-Daten auf 0 fallen.
                         local rate_now = 0
                         if last_heading_update_time and (os.clock() - last_heading_update_time) < 1.0 then
                             rate_now = turn_rate
                         end
+                        local kp_factor = (cfg.auto_steer_kp or 80.0) / 80.0
+                        local kd_factor = (cfg.auto_steer_kd or 15.0) / 15.0
                         local coast_factor = cfg.auto_steer_coast_factor or 0.6
                         local hold_error = cfg.auto_steer_hold_error or 0.05
                         local hold_rate = cfg.auto_steer_hold_rate or 0.04
                         local hold_timeout = cfg.auto_steer_hold_max or 5.0
                         if hold_active then
-                            -- Gegenruder-Phase: Das Schiff dreht wegen seiner Tragheit noch
-                            -- nach. Aktiv dagegen steuern, bis die Drehung abgeklungen ist.
-                            steer_speed = (rate_now > 0 and -1 or 1) * (cfg.auto_steer_max or 128) * coast_factor
-                            if cfg.steer_invert then
-                                steer_speed = -steer_speed
-                            end
+                            -- Gegenruder-Phase: Das Schiff dreht wegen seiner Tragheit
+                            -- noch nach. Aktiv dagegen steuern, bis die Drehung
+                            -- abgeklungen ist (Hysterese: Eintritt ab hold_rate,
+                            -- Freigabe erst unter hold_rate / 2 -> kein Ruderflattern).
+                            steer_cmd = (rate_now > 0 and -1 or 1) * coast_factor
                             local timedOut = hold_start_time and (os.clock() - hold_start_time) > hold_timeout
-                            if abs_err < 0.01 or abs_err > hold_release_err + hold_error
-                                    or math.abs(rate_now) < hold_rate or timedOut then
+                            if abs_err > hold_release_err + hold_error
+                                    or math.abs(rate_now) <= hold_rate * 0.5 or timedOut then
                                 hold_active = false
                                 hold_start_time = nil
-                                steer_speed = 0
-                            end
-                        elseif abs_err >= 0.03 then
-                            -- Normale Lenkphase
-                            steer_speed = (err > 0 and 1 or -1) * (cfg.auto_steer_max or 128) * turn_strength
-                            if cfg.steer_invert then
-                                steer_speed = -steer_speed
                             end
                         else
-                            -- Ruder freigegeben: Beobachten, ob das Schiff noch nachdreht.
-                            -- Falls ja -> Gegenruder-Phase starten.
-                            hold_release_err = abs_err
-                            hold_start_time = os.clock()
-                            if math.abs(rate_now) >= hold_rate then
+                            -- Bipolarer PD-Regler: P auf den Kursfehler, D auf die
+                            -- gemessene Drehrate. Das Vorzeichen bleibt erhalten, damit
+                            -- der Regler um den Zielkurs herum aussteuern kann statt
+                            -- nur Vollruder in eine Richtung zu geben.
+                            local proportional = (err / 0.20) * kp_factor
+                            local damping = (rate_now / 0.25) * kd_factor * 0.5
+                            steer_cmd = clamp(proportional - damping, -1, 1) * steer_blend
+                            if math.abs(steer_cmd) < 0.02 then steer_cmd = 0 end
+                            -- Ohne Lenkbedarf nahe am Zielkurs: pruefen, ob das Schiff
+                            -- noch nachdreht. Falls ja -> Gegenruder-Phase starten.
+                            if abs_err < 0.10 and math.abs(rate_now) >= hold_rate then
                                 hold_active = true
-                                steer_speed = (rate_now > 0 and -1 or 1) * (cfg.auto_steer_max or 128) * coast_factor
-                                if cfg.steer_invert then
-                                    steer_speed = -steer_speed
-                                end
-                            else
-                                hold_start_time = nil
+                                hold_release_err = abs_err
+                                hold_start_time = os.clock()
+                                steer_cmd = (rate_now > 0 and -1 or 1) * coast_factor
                             end
                         end
                     else
                         steer_tick_counter = 0
                         hold_active = false
                         hold_start_time = nil
+                    end
+                    -- steer_invert nur einmal am Ende anwenden: gilt fuer Lenk- und
+                    -- Gegenruder-Phase identisch.
+                    local steer_speed = steer_cmd * (cfg.auto_steer_max or 128)
+                    if cfg.steer_invert then
+                        steer_speed = -steer_speed
                     end
                 local thrustSteer = steer_speed * (cfg.auto_thrust_steer_mix or 1.0)
                 setThrustMotorSpeeds(
